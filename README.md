@@ -4,14 +4,16 @@
 
 A small macOS app for switching the **system timezone**. Choose any timezone available on your Mac, and keep one or two favorites. One city is enough to start.
 
-[中文说明](README.zh-CN.md) · [Download](https://github.com/jockerxb/TZswitch/releases/latest) · [MIT License](LICENSE)
+[中文说明](README.zh-CN.md) · [User guide (中文)](docs/USER_GUIDE.zh-CN.md) · [Download](https://github.com/jockerxb/TZswitch/releases/latest) · [MIT License](LICENSE)
 
 ## Use
 
+See the **[App user guide (中文)](docs/USER_GUIDE.zh-CN.md)** for installation, first-run setup, UTC search examples, navigation, authorization, and troubleshooting.
+
 1. Download the universal ZIP from Releases, extract it, and drag **TZswitch.app** into Applications.
 2. On first launch, choose a favorite city in either empty slot to get started. The second city is optional. Search the global catalog, grouped by current UTC offset from lowest to highest; the current group header stays pinned while scrolling. Use the right-hand UTC index to jump between groups. Counts distinguish current UTC-offset groups from deduplicated city entries. Offset searches accept `utc9`, `utc-8`, and `utc5:30`. Choosing a city immediately requests macOS administrator authorization to switch. The new favorite is saved only after verified success; cancellation or failure preserves the previous favorite and system timezone. Click Close or press Esc to return without choosing.
-3. Click the card body to apply a favorite; click its right-hand `>` area to change the city. The green border marks the active timezone.
-4. Approve the macOS administrator prompt. The app reads back the system settings before reporting success. Close the window to quit; standard macOS minimize and fullscreen controls are available.
+3. Approve the macOS administrator prompt triggered by choosing the city. The app verifies and applies it immediately; no second card click is needed.
+4. For later changes, click the card body to apply a favorite or its right-hand `>` area to change the city. The green border marks the active timezone. Close the window to quit; the applied system timezone stays in effect.
 
 Requires macOS 13 or newer; the universal app includes Apple Silicon and Intel binaries. The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`. Beijing and 北京时间 resolve to Beijing / Shanghai (`Asia/Shanghai`). Compatibility IDs for the same city with identical full timezone rules appear once, while their old names remain searchable.
 
