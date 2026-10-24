@@ -49,21 +49,50 @@ check(ZoneCatalog.search("los angeles", at: winter).contains(.losAngeles), "英�
 check(ZoneCatalog.search("asia/kathmandu", at: winter).contains(Destination(rawValue: "Asia/Kathmandu")!), "IANA 标识不区分大小写")
 check(ZoneCatalog.search("UTC+05:45", at: winter).contains(Destination(rawValue: "Asia/Kathmandu")!), "偏移搜索")
 check(ZoneCatalog.search("UTC-08:00", at: winter).contains(.losAngeles), "负偏移搜索")
+check(ZoneCatalog.search("UTC−08:00", at: winter).contains(.losAngeles), "支持从界面复制的 Unicode 负号")
 check(ZoneCatalog.search("  ", at: winter).count == Destination.allCases.count, "空白查询展示全部时区")
 check(ZoneCatalog.search("nothing-matches-this", at: winter).isEmpty, "无匹配搜索")
 let suite = "TZswitch.Tests." + UUID().uuidString
 let defaults = UserDefaults(suiteName: suite)!
-var pair = QuickZones(defaults: defaults)
-check(pair.zones == [.lusaka, .losAngeles], "首次启动默认快捷位")
+var pair = FavoriteZones(defaults: defaults)
+check(pair.slots == [nil, nil] && !pair.isComplete, "新用户没有预设城市，进入设置引导")
 let tokyo = Destination(rawValue: "Asia/Tokyo")!
-check(pair.replace(slot: 0, with: tokyo, defaults: defaults), "修改快捷位")
-check(QuickZones(defaults: defaults).zones == [tokyo, .losAngeles], "重新读取已保存快捷位")
-check(!pair.replace(slot: 1, with: tokyo, defaults: defaults), "拒绝重复快捷位")
-check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝不存在的快捷位")
-for corrupt in [["Africa/Lusaka"], ["Africa/Lusaka", "Africa/Lusaka"], ["Bogus/Zone", "Asia/Tokyo"], ["Asia/Tokyo", "Asia/Shanghai", "Etc/UTC"]] {
-    defaults.set(corrupt, forKey: QuickZones.key)
-    check(QuickZones(defaults: defaults).zones == [.lusaka, .losAngeles], "损坏偏好恢复有效默认值")
+check(pair.replace(slot: 0, with: tokyo, defaults: defaults), "保存第一个常用时区")
+check(pair.configuredCount == 1 && !pair.isComplete, "设置一项后继续引导")
+check(FavoriteZones(defaults: defaults).slots == [tokyo, nil], "设置到一半退出重开可继续")
+check(pair.replace(slot: 1, with: .losAngeles, defaults: defaults), "保存第二个常用时区")
+check(pair.isComplete && pair.configuredCount == 2, "两项设置完成后结束引导")
+check(FavoriteZones(defaults: defaults).slots == [tokyo, .losAngeles], "重新读取已保存常用时区")
+check(!pair.replace(slot: 1, with: tokyo, defaults: defaults), "拒绝重复常用时区")
+check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝不存在的常用位置")
+check(pair.slots == [tokyo, .losAngeles], "失败的编辑不修改现有选择")
+defaults.removeObject(forKey: FavoriteZones.key)
+defaults.set(["Africa/Lusaka", "America/Los_Angeles"], forKey: FavoriteZones.legacyKey)
+var migrated = FavoriteZones(defaults: defaults)
+check(migrated.slots == [.lusaka, .losAngeles] && migrated.isComplete, "保留旧版用户已保存的两个城市")
+check(migrated.replace(slot: 1, with: tokyo, defaults: defaults), "升级后继续编辑")
+check(FavoriteZones(defaults: defaults).slots == [.lusaka, tokyo], "新偏好优先于旧版数据")
+for (saved, expected) in [
+    (["Africa/Lusaka"], [nil, nil]),
+    (["Africa/Lusaka", "Africa/Lusaka"], [Destination.lusaka, nil]),
+    (["Bogus/Zone", "Asia/Tokyo"], [nil, tokyo]),
+    (["", "Asia/Tokyo"], [nil, tokyo]),
+    (["Asia/Tokyo", "Asia/Shanghai", "Etc/UTC"], [nil, nil])
+] as [([String], [Destination?])] {
+    defaults.set(saved, forKey: FavoriteZones.key)
+    check(FavoriteZones(defaults: defaults).slots == expected, "损坏偏好保留有效项并引导补全")
 }
+for date in [winter, summer] {
+    let sorted = ZoneCatalog.search("", at: date)
+    let offsets = sorted.map { $0.zone.secondsFromGMT(for: date) }
+    check(offsets == offsets.sorted(), "全球时区按当日 UTC 偏移递增")
+    let groups = ZoneCatalog.groups("", at: date)
+    check(groups.map(\.seconds) == Array(Set(offsets)).sorted(), "UTC 分组顺序连续且不重复")
+    check(groups.flatMap(\.zones) == sorted, "分组不丢失或重复任何城市")
+    check(groups.allSatisfy { group in group.zones.allSatisfy { $0.offset(at: date) == group.title } }, "分组标题与城市真实偏移一致")
+}
+let fractionalGroups = ZoneCatalog.groups("UTC+05:45", at: winter)
+check(fractionalGroups.count == 1 && fractionalGroups[0].seconds == 20700, "45 分钟时区独立分组")
 let live = SystemSnapshot.read()
 check(TimeZone(identifier: live.identifier) != nil, "当前系统时区可以被解析")
 print("LIVE timezone=\(live.identifier), automatic=\(String(describing: live.automatic))")

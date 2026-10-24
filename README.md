@@ -9,9 +9,9 @@ A small macOS app for switching the **system timezone**. Choose any timezone ava
 ## Use
 
 1. Download the universal ZIP from Releases, extract it, and drag **TZswitch.app** into Applications.
-2. Click the pencil beside either quick slot to choose a favorite. This saves the slot locally and leaves the system timezone unchanged.
-3. Click a timezone card or use the switch to apply one of your two favorites. **Browse global timezones** also lets you switch directly to any listed timezone.
-4. Approve the macOS administrator prompt. The app reads back the system settings before reporting success.
+2. On first launch, choose your two favorite timezones using the empty cards. Search the global catalog, grouped by current UTC offset from lowest to highest. Setup saves preferences and leaves the system timezone unchanged.
+3. Click a timezone card or use the switch to apply one of your favorites. Use the pencil to change either favorite later. The green border marks the active timezone; the right arrow indicates switching.
+4. Approve the macOS administrator prompt. The app reads back the system settings before reporting success. Close the window to quit; standard macOS minimize and fullscreen controls are available.
 
 Requires macOS 13 or newer; the universal app includes Apple Silicon and Intel binaries. The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`.
 
@@ -19,7 +19,7 @@ The release uses an **ad hoc signature**. It is not Developer ID signed or notar
 
 ## Behavior
 
-- Two customizable, distinct quick slots, initially Lusaka and Los Angeles. Preferences stay on your Mac.
+- Two customizable, distinct favorite timezones. New installs start with empty slots and a setup guide; existing users keep their saved choices. Partially completed setup is saved, so you can continue after reopening.
 - The timezone catalog and daylight saving rules come from macOS [Foundation TimeZone](https://developer.apple.com/documentation/foundation/timezone). The list follows the system timezone database rather than a bundled city list.
 - A manual switch disables automatic timezone selection to keep macOS from switching back based on location. Network time synchronization is left alone.
 - Launching, editing favorites, and quitting do **not** change the system timezone. Quitting keeps the last applied system setting; reopening reads the actual current setting.
@@ -40,7 +40,7 @@ cd TZswitch
 
 For a faster local build, use `./build.sh arm64` or `./build.sh x86_64`. Sources use Swift, SwiftUI, and AppKit. The icon tool uses Python 3's standard library and native CoreGraphics. An Intel build can be cross-compiled on Apple Silicon; running it requires a compatible Mac or Rosetta.
 
-Tests cover DST boundaries, fractional offsets, global search, saved preferences, invalid input, verified switching results, rollback transactions, and all 11 ICNS representations. Transaction tests use fake OS commands and never request administrator privileges. AppleScript syntax checks are skipped if the environment cannot load Standard Additions; the app also compiles its authorization script before use. Real privileged switching and visual checks require a Mac and manual authorization.
+Tests cover DST boundaries, fractional offsets, global search and UTC grouping, first-run setup, legacy preference migration, saved preferences, invalid input, verified switching results, rollback transactions, and all 11 ICNS representations. Transaction tests use fake OS commands and never request administrator privileges. AppleScript syntax checks are skipped if the environment cannot load Standard Additions; the app also compiles its authorization script before use. Real privileged switching and visual checks require a Mac and manual authorization.
 
 ## Implementation
 

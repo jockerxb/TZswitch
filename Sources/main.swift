@@ -7,7 +7,7 @@ import SwiftUI
     @Published var busy = false
     @Published var message: String?
     @Published var failed = false
-    @Published var quick = QuickZones(defaults: .standard)
+    @Published var favorites = FavoriteZones(defaults: .standard)
     let authorizationReady: Bool
     private var lastVerified: Destination?
     private var timer: Timer?
@@ -37,17 +37,17 @@ import SwiftUI
         }
     }
 
-    func saveQuick(slot: Int, destination: Destination) -> Bool {
+    func saveFavorite(slot: Int, destination: Destination) -> Bool {
         guard !busy else { return false }
-        var updated = quick
+        var updated = favorites
         guard updated.replace(slot: slot, with: destination, defaults: .standard) else {
             failed = true
-            message = "两个快捷位请选择不同的时区。"
+            message = "两个常用时区请选择不同的时区。"
             return false
         }
-        quick = updated
+        favorites = updated
         failed = false
-        message = "已保存快捷位，系统时区未更改。"
+        message = "已保存常用时区，系统时区未更改。"
         return true
     }
 
@@ -90,126 +90,140 @@ private let ink = Color(red: 0.07, green: 0.10, blue: 0.17)
 private let teal = Color(red: 0.08, green: 0.45, blue: 0.43)
 
 struct PickerRequest: Identifiable {
-    let id = UUID()
-    let slot: Int?
+    let slot: Int
+    var id: Int { slot }
 }
 
 struct TimezoneView: View {
     @ObservedObject var model: AppModel
     @State private var picker: PickerRequest?
-    private var inQuickPair: Bool { model.quick.zones.contains { $0.rawValue == model.snapshot.identifier } }
+    private var inFavoritePair: Bool {
+        model.favorites.slots.contains { $0?.rawValue == model.snapshot.identifier }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(spacing: 12) {
-                if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String,
-                   let url = Bundle.main.url(forResource: name, withExtension: nil),
-                   let icon = NSImage(contentsOf: url) {
-                    Image(nsImage: icon).resizable().frame(width: 48, height: 48)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("TZswitch").font(.system(size: 22, weight: .semibold))
-                    Text("全球时区，随手切换").font(.system(size: 12)).foregroundColor(.secondary)
-                }
-                Spacer()
-                Text("2.0").font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 6) {
-                    Circle().fill(teal).frame(width: 6, height: 6)
-                    Text("系统当前时区").font(.system(size: 11, weight: .medium))
-                    Spacer()
-                    Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
-                        .font(.system(size: 11, design: .monospaced))
-                }.foregroundColor(.secondary)
-                Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
-                HStack {
-                    Text(model.snapshot.destination?.city ?? model.snapshot.identifier).font(.system(size: 15, weight: .medium))
-                    Spacer()
-                    Text(currentDate).font(.system(size: 11)).foregroundColor(.secondary)
-                }
-                Text(model.snapshot.identifier).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
-            }.padding(20).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 19))
-
-            VStack(spacing: 10) {
-                HStack {
-                    Text("两个快捷时区").font(.system(size: 13, weight: .semibold))
-                    Spacer()
-                    if model.busy { ProgressView().controlSize(.small) }
-                    if inQuickPair {
-                        Text("1 ⇄ 2").font(.system(size: 11)).foregroundColor(.secondary)
-                        Toggle("切换两个快捷时区", isOn: Binding(
-                            get: { model.snapshot.destination == model.quick.zones[1] },
-                            set: { model.select(model.quick.zones[$0 ? 1 : 0]) }
-                        ))
-                        .labelsHidden().toggleStyle(.switch).tint(teal).disabled(model.busy)
-                        .help("关闭使用快捷位 1，开启使用快捷位 2")
-                    } else {
-                        Text("当前使用其他时区").font(.system(size: 11)).foregroundColor(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(spacing: 12) {
+                    if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String,
+                       let url = Bundle.main.url(forResource: name, withExtension: nil),
+                       let icon = NSImage(contentsOf: url) {
+                        Image(nsImage: icon).resizable().frame(width: 48, height: 48)
                     }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TZswitch").font(.system(size: 22, weight: .semibold))
+                        Text("常用时区，随手切换").font(.system(size: 12)).foregroundColor(.secondary)
+                    }
+                    Spacer()
                 }
-                ForEach(0..<2, id: \.self) { slot in quickRow(slot) }
-                Button { picker = PickerRequest(slot: nil) } label: {
-                    HStack {
-                        Image(systemName: "globe")
-                        Text("浏览全球时区")
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Circle().fill(teal).frame(width: 6, height: 6)
+                        Text("系统当前时区").font(.system(size: 11, weight: .medium))
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 10))
-                    }.font(.system(size: 12, weight: .medium)).padding(12)
-                    .background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 10))
-                }.buttonStyle(.plain).disabled(model.busy)
+                        Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
+                            .font(.system(size: 11, design: .monospaced))
+                    }.foregroundColor(.secondary)
+                    Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
+                    HStack {
+                        Text(model.snapshot.destination?.city ?? model.snapshot.identifier).font(.system(size: 15, weight: .medium))
+                        Spacer()
+                        Text(currentDate).font(.system(size: 11)).foregroundColor(.secondary)
+                    }
+                    Text(model.snapshot.identifier).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+                }.padding(20).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 19))
+
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("常用时区").font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        if model.busy { ProgressView().controlSize(.small) }
+                        if model.favorites.isComplete, inFavoritePair {
+                            Text("1 ⇄ 2").font(.system(size: 11)).foregroundColor(.secondary)
+                            Toggle("切换两个常用时区", isOn: Binding(
+                                get: { model.snapshot.destination == model.favorites.slots[1] },
+                                set: { if let zone = model.favorites.slots[$0 ? 1 : 0] { model.select(zone) } }
+                            ))
+                            .labelsHidden().toggleStyle(.switch).tint(teal).disabled(model.busy)
+                            .help("关闭使用常用时区 1，开启使用常用时区 2")
+                        } else if model.favorites.isComplete {
+                            Text("当前使用其他时区").font(.system(size: 11)).foregroundColor(.secondary)
+                        } else {
+                            Text("已设置 \(model.favorites.configuredCount)/2").font(.system(size: 11)).foregroundColor(.secondary)
+                        }
+                    }
+                    if !model.favorites.isComplete {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("先选择两个常用时区").font(.system(size: 14, weight: .semibold))
+                            Text("点击下方空位，选择你常用的两个时区。设置只保存偏好；完成后，点击卡片或使用开关切换系统时区。")
+                                .font(.system(size: 12)).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                        .background(teal.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    ForEach(0..<2, id: \.self) { slot in favoriteRow(slot) }
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 7) {
+                        Image(systemName: model.failed ? "exclamationmark.circle" : "checkmark.shield")
+                        Text(model.message ?? (model.snapshot.automatic == true
+                            ? "切换需要管理员授权，并会关闭自动时区。"
+                            : "切换需要 macOS 管理员授权。"))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }.font(.system(size: 11)).foregroundColor(model.failed ? .red : .secondary)
+                    Text("关闭窗口即退出 · 系统时区会继续保留").font(.system(size: 10)).foregroundColor(.secondary)
+                }
+                Divider()
+                Button("日期与时间设置") { openDateSettings() }
+                    .buttonStyle(.plain).font(.system(size: 11)).foregroundColor(.secondary)
             }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 7) {
-                    Image(systemName: model.failed ? "exclamationmark.circle" : "checkmark.shield")
-                    Text(model.message ?? (model.snapshot.automatic == true
-                        ? "切换需要管理员授权，并会关闭自动时区。"
-                        : "切换需要 macOS 管理员授权。"))
-                        .fixedSize(horizontal: false, vertical: true)
-                }.font(.system(size: 11)).foregroundColor(model.failed ? .red : .secondary)
-                Text("退出后保留系统时区 · 仅手动切换时修改").font(.system(size: 10)).foregroundColor(.secondary)
-            }
-            Divider()
-            HStack {
-                Button("日期与时间设置") { openDateSettings() }.buttonStyle(.plain)
-                Spacer()
-                Button("退出") { NSApp.terminate(nil) }.buttonStyle(.plain).disabled(model.busy)
-            }.font(.system(size: 11)).foregroundColor(.secondary)
+            .padding(26).frame(maxWidth: 650).frame(maxWidth: .infinity)
         }
-        .padding(26).frame(width: 460).foregroundColor(ink)
-        .background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
+        .frame(minWidth: 460, idealWidth: 460, minHeight: 560, idealHeight: 630)
+        .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
         .sheet(item: $picker) { request in ZonePicker(model: model, slot: request.slot) }
     }
 
-    private func quickRow(_ slot: Int) -> some View {
-        let zone = model.quick.zones[slot]
-        let selected = model.snapshot.destination == zone
-        return HStack(spacing: 6) {
-            Button { model.select(zone) } label: {
+    @ViewBuilder private func favoriteRow(_ slot: Int) -> some View {
+        if let zone = model.favorites.slots[slot] {
+            let selected = model.snapshot.destination == zone
+            HStack(spacing: 6) {
+                Button { model.select(zone) } label: {
+                    HStack(spacing: 10) {
+                        Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
+                            .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(zone.city).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                            Text(zone.offset(at: model.now) + (zone.zone.isDaylightSavingTime(for: model.now) ? " · 夏令时" : ""))
+                                .font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+                        }
+                        Spacer(minLength: 4)
+                        Text(zone.time(at: model.now)).font(.system(size: 22, design: .rounded)).monospacedDigit()
+                        Image(systemName: "arrow.right").font(.system(size: 14)).foregroundColor(teal)
+                    }.padding(.vertical, 13).padding(.leading, 12).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityLabel("切换到\(zone.city)")
+                Button { picker = PickerRequest(slot: slot) } label: {
+                    Image(systemName: "pencil").font(.system(size: 13)).foregroundColor(.secondary)
+                        .frame(width: 33, height: 46).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityLabel("编辑常用时区\(slot + 1)").help("设置常用时区 \(slot + 1)，不更改系统时区")
+            }
+            .padding(.trailing, 5)
+            .background(selected ? teal.opacity(0.045) : Color.white.opacity(0.8))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? teal.opacity(0.5) : Color.black.opacity(0.04)))
+            .disabled(model.busy)
+        } else {
+            Button { picker = PickerRequest(slot: slot) } label: {
                 HStack(spacing: 10) {
                     Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
                         .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(zone.city).font(.system(size: 15, weight: .semibold)).lineLimit(1)
-                        Text(zone.offset(at: model.now) + (zone.zone.isDaylightSavingTime(for: model.now) ? " · 夏令时" : ""))
-                            .font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
-                    }
-                    Spacer(minLength: 4)
-                    Text(zone.time(at: model.now)).font(.system(size: 22, design: .rounded)).monospacedDigit()
-                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(selected ? teal : Color.gray.opacity(0.3))
-                }.padding(.vertical, 13).padding(.leading, 12).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("切换到\(zone.city)")
-            Button { picker = PickerRequest(slot: slot) } label: {
-                Image(systemName: "pencil").font(.system(size: 13)).foregroundColor(.secondary)
-                    .frame(width: 33, height: 46).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("编辑快捷位\(slot + 1)").help("选择快捷位 \(slot + 1) 的时区，不更改系统设置")
+                    Text("选择常用时区 \(slot + 1)").font(.system(size: 14, weight: .medium))
+                    Spacer()
+                    Image(systemName: "plus").foregroundColor(teal)
+                }.padding(13).contentShape(Rectangle())
+            }.buttonStyle(.plain).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
+                .disabled(model.busy)
         }
-        .padding(.trailing, 5)
-        .background(selected ? teal.opacity(0.045) : Color.white.opacity(0.8))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? teal.opacity(0.5) : Color.black.opacity(0.04)))
-        .disabled(model.busy)
     }
     private var currentTime: String { format("HH:mm:ss", locale: "en_US_POSIX") }
     private var currentDate: String { format("M月d日 EEEE", locale: "zh_CN") }
@@ -222,55 +236,85 @@ struct TimezoneView: View {
     }
 }
 
+// Keep catalog results and the reference date stable while the live clock updates.
+final class PickerCatalog: ObservableObject {
+    private let referenceDate: Date
+    @Published private(set) var groups: [ZoneCatalog.OffsetGroup]
+    init() {
+        let date = Date()
+        referenceDate = date
+        groups = ZoneCatalog.groups("", at: date)
+    }
+    func search(_ query: String) { groups = ZoneCatalog.groups(query, at: referenceDate) }
+}
+
 struct ZonePicker: View {
     @ObservedObject var model: AppModel
-    let slot: Int?
+    let slot: Int
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var error: String?
-    private var results: [Destination] { ZoneCatalog.search(search, at: model.now) }
+    // Stable data and date while choosing; the live clock cannot reorder rows.
+    @StateObject private var catalog = PickerCatalog()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(slot.map { "设置快捷位 \($0 + 1)" } ?? "切换系统时区").font(.system(size: 18, weight: .semibold))
+                Text("设置常用时区 \(slot + 1)").font(.system(size: 18, weight: .semibold))
                 Spacer()
                 Button("完成") { dismiss() }.keyboardShortcut(.cancelAction)
             }
-            Text(slot == nil ? "选择时区后将请求 macOS 管理员授权。" : "仅保存快捷位，系统时区保持不变。")
+            Text("按当前 UTC 偏移从小到大排列。选择仅保存偏好，不会更改系统时区。")
                 .font(.system(size: 12)).foregroundColor(.secondary)
-            TextField("搜索城市、IANA 标识或 UTC 偏移，例如：上海 / Tokyo / UTC+05:45", text: $search)
+            TextField("搜索城市、IANA 标识或 UTC 偏移", text: $search)
                 .textFieldStyle(.roundedBorder).accessibilityLabel("搜索全球时区")
             HStack {
-                Text("\(results.count) 个时区").font(.system(size: 11)).foregroundColor(.secondary)
+                Text("\(catalog.groups.reduce(0) { $0 + $1.zones.count }) 个时区").font(.system(size: 11)).foregroundColor(.secondary)
                 Spacer()
                 if let error { Text(error).font(.system(size: 11)).foregroundColor(.red) }
             }
-            List(results) { zone in
-                Button {
-                    if let slot {
-                        if model.saveQuick(slot: slot, destination: zone) { dismiss() }
-                        else { error = "此时区已在另一个快捷位中" }
-                    } else {
-                        dismiss()
-                        model.select(zone)
-                    }
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(zone.city).font(.system(size: 13, weight: .medium))
-                            Text(zone.rawValue).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+            // Avoid native List's floating section headers, which can shift the
+            // initial viewport during sheet presentation on macOS.
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(catalog.groups) { group in
+                        Text(group.title)
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundColor(teal)
+                            .padding(.horizontal, 12).padding(.top, 16).padding(.bottom, 8)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(group.zones) { zone in
+                            let selected = model.favorites.slots[slot] == zone
+                            let usedByOther = model.favorites.slots[1 - slot] == zone
+                            Button {
+                                if model.saveFavorite(slot: slot, destination: zone) { dismiss() }
+                                else { error = "此时区已在另一个常用时区中" }
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(zone.city).font(.system(size: 13, weight: .medium))
+                                        Text(zone.rawValue).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    if usedByOther { Text("另一常用时区").font(.system(size: 10)).foregroundColor(.secondary) }
+                                    Text(group.title).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+                                }.padding(8).contentShape(Rectangle())
+                                    .background(selected ? teal.opacity(0.05) : Color.clear)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(selected ? teal.opacity(0.5) : .clear))
+                            }.buttonStyle(.plain).accessibilityLabel("选择\(zone.city)，\(zone.rawValue)")
+                            Divider().padding(.horizontal, 8)
                         }
-                        Spacer()
-                        Text(zone.offset(at: model.now)).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
-                        if model.snapshot.destination == zone { Image(systemName: "checkmark").foregroundColor(teal) }
-                    }.padding(.vertical, 5).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityLabel("选择\(zone.city)，\(zone.rawValue)")
-            }.listStyle(.inset).overlay {
-                if results.isEmpty { Text("未找到时区，请尝试城市英文名或 IANA 标识。 ").foregroundColor(.secondary).font(.system(size: 12)) }
+                    }
+                }.padding(.horizontal, 6).padding(.bottom, 12)
+            }
+            .id(search)
+            .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay {
+                if catalog.groups.isEmpty { Text("未找到时区，请尝试城市英文名或 IANA 标识。").foregroundColor(.secondary).font(.system(size: 12)) }
             }
         }
         .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)
+        .onChange(of: search) { query in catalog.search(query) }
     }
 }
 
@@ -287,7 +331,10 @@ func openDateSettings() {
         window = NSWindow(contentViewController: host)
         window.delegate = self
         window.title = "TZswitch"
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.contentMinSize = NSSize(width: 460, height: 560)
+        window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 630 : 730))
+        window.collectionBehavior.insert(.fullScreenPrimary)
         window.isReleasedWhenClosed = false
         window.center()
         window.setFrameAutosaveName("TimezoneSwitchWindow")

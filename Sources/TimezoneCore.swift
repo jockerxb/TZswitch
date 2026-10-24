@@ -62,28 +62,55 @@ enum ZoneCatalog {
         })
     }()
     static func search(_ query: String, at date: Date) -> [Destination] {
-        let terms = query.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ")
-        guard !terms.isEmpty else { return Destination.allCases }
-        return Destination.allCases.filter { destination in
+        let terms = query.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "−", with: "-").split(separator: " ")
+        let matches = terms.isEmpty ? Destination.allCases : Destination.allCases.filter { destination in
             let text = "\(destination.city) \(destination.englishCity) \(destination.rawValue.replacingOccurrences(of: "_", with: " ")) \(destination.rawValue) \(destination.offset(at: date).replacingOccurrences(of: "−", with: "-"))"
             return terms.allSatisfy { text.range(of: String($0), options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        }
+        return matches.sorted {
+            let left = $0.zone.secondsFromGMT(for: date), right = $1.zone.secondsFromGMT(for: date)
+            if left != right { return left < right }
+            let cityOrder = $0.city.compare($1.city, locale: Locale(identifier: "zh_CN"))
+            return cityOrder == .orderedSame ? $0.rawValue < $1.rawValue : cityOrder == .orderedAscending
+        }
+    }
+
+    struct OffsetGroup: Identifiable {
+        let seconds: Int
+        let title: String
+        let zones: [Destination]
+        var id: Int { seconds }
+    }
+    static func groups(_ query: String, at date: Date) -> [OffsetGroup] {
+        let matches = search(query, at: date)
+        let grouped = Dictionary(grouping: matches) { $0.zone.secondsFromGMT(for: date) }
+        return grouped.keys.sorted().map { seconds in
+            let zones = grouped[seconds]!
+            return OffsetGroup(seconds: seconds, title: zones[0].offset(at: date), zones: zones)
         }
     }
 }
 
-struct QuickZones: Equatable {
-    static let key = "quickTimezones.v2"
-    private(set) var zones: [Destination]
+/// Two fixed slots can be empty until onboarding is complete. Never modifies macOS.
+struct FavoriteZones: Equatable {
+    static let key = "favoriteTimezones.v3"
+    static let legacyKey = "quickTimezones.v2"
+    private(set) var slots: [Destination?]
+    var isComplete: Bool { slots.allSatisfy { $0 != nil } }
+    var configuredCount: Int { slots.compactMap { $0 }.count }
+
     init(defaults: UserDefaults) {
-        let saved = defaults.stringArray(forKey: Self.key) ?? []
-        let valid = saved.compactMap { Destination(rawValue: $0) }
-        zones = saved.count == 2 && valid.count == 2 && valid[0] != valid[1] ? valid : [.lusaka, .losAngeles]
+        // Preserve existing users' choices; new installs start with two empty slots.
+        let saved = defaults.stringArray(forKey: Self.key) ?? defaults.stringArray(forKey: Self.legacyKey)
+        guard let saved, saved.count == 2 else { slots = [nil, nil]; return }
+        slots = saved.map { Destination(rawValue: $0) }
+        if slots[0] != nil && slots[0] == slots[1] { slots[1] = nil }
     }
-    /// Returns false for a duplicate or invalid slot; editing never changes macOS.
+    /// Invalid input leaves the pair unchanged; a successful save persists both slots.
     mutating func replace(slot: Int, with zone: Destination, defaults: UserDefaults) -> Bool {
-        guard zones.indices.contains(slot), zones[1 - slot] != zone else { return false }
-        zones[slot] = zone
-        defaults.set(zones.map(\.rawValue), forKey: Self.key)
+        guard slots.indices.contains(slot), slots[1 - slot] != zone else { return false }
+        slots[slot] = zone
+        defaults.set(slots.map { $0?.rawValue ?? "" }, forKey: Self.key)
         return true
     }
 }
