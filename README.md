@@ -23,8 +23,6 @@ The release uses an **ad hoc signature**. It is not Developer ID signed or notar
 
 #### If macOS says Apple cannot verify TZswitch
 
-<img src="docs/images/macos-unverified-app.png" width="420" alt="macOS blocks TZswitch with an Apple cannot verify warning">
-
 After confirming that the package came from [this repository's Releases](https://github.com/jockerxb/TZswitch/releases/latest):
 
 1. Click **Done** in the blocked-app dialog.
