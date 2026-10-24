@@ -185,13 +185,10 @@ struct TimezoneView: View {
                     }.font(.system(size: 11)).foregroundColor(model.failed ? .red : .secondary)
                     Text("关闭窗口即退出 · 系统时区会继续保留").font(.system(size: 10)).foregroundColor(.secondary)
                 }
-                Divider()
-                Button("日期与时间设置") { openDateSettings() }
-                    .buttonStyle(.plain).font(.system(size: 11)).foregroundColor(.secondary)
             }
             .padding(26).frame(maxWidth: 650).frame(maxWidth: .infinity)
         }
-        .frame(minWidth: 460, idealWidth: 460, minHeight: 560, idealHeight: 630)
+        .frame(minWidth: 460, idealWidth: 460, minHeight: 520, idealHeight: 560)
         .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
         .sheet(item: $picker) { request in ZonePicker(model: model, slot: request.slot) }
     }
@@ -210,7 +207,7 @@ struct TimezoneView: View {
                     }
                     Spacer(minLength: 4)
                     Text(zone.time(at: model.now)).font(.system(size: 22, design: .rounded)).monospacedDigit()
-                    Image(systemName: "arrow.right").font(.system(size: 14)).foregroundColor(teal)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .medium)).foregroundColor(teal)
                 }.padding(13).contentShape(Rectangle())
             }
             .buttonStyle(.plain).accessibilityLabel("切换到\(zone.city)")
@@ -324,10 +321,6 @@ struct ZonePicker: View {
     }
 }
 
-func openDateSettings() {
-    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Date-Time-Settings.extension")!)
-}
-
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let model = AppModel()
     private var window: NSWindow!
@@ -338,12 +331,19 @@ func openDateSettings() {
         window.delegate = self
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.contentMinSize = NSSize(width: 460, height: 560)
-        window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 630 : 730))
+        window.contentMinSize = NSSize(width: 460, height: 520)
+        window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 560 : 660))
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.isReleasedWhenClosed = false
         window.center()
         window.setFrameAutosaveName("TimezoneSwitchWindow")
+        // A saved frame can restore the old footer's height after setContentSize.
+        // Migrate geometry once, then preserve future user resizing as usual.
+        let layoutRevisionKey = "windowLayoutRevision"
+        if UserDefaults.standard.integer(forKey: layoutRevisionKey) < 1 {
+            window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 560 : 660))
+            UserDefaults.standard.set(1, forKey: layoutRevisionKey)
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         let menu = NSMenu()
