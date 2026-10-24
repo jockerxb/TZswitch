@@ -136,6 +136,18 @@ struct TimezoneView: View {
                 VStack(spacing: 10) {
                     HStack {
                         Text("常用时区").font(.system(size: 13, weight: .semibold))
+                        if model.favorites.configuredCount > 0 {
+                            Menu("设置") {
+                                ForEach(0..<2, id: \.self) { slot in
+                                    Button("常用时区 \(slot + 1) · \(model.favorites.slots[slot]?.city ?? "未设置")") {
+                                        picker = PickerRequest(slot: slot)
+                                    }
+                                }
+                            }
+                            .menuStyle(.borderlessButton).fixedSize()
+                            .font(.system(size: 11)).foregroundColor(.secondary)
+                            .accessibilityLabel("设置常用时区").disabled(model.busy)
+                        }
                         Spacer()
                         if model.busy { ProgressView().controlSize(.small) }
                         if model.favorites.isComplete, inFavoritePair {
@@ -187,27 +199,21 @@ struct TimezoneView: View {
     @ViewBuilder private func favoriteRow(_ slot: Int) -> some View {
         if let zone = model.favorites.slots[slot] {
             let selected = model.snapshot.destination == zone
-            HStack(spacing: 6) {
-                Button { model.select(zone) } label: {
-                    HStack(spacing: 10) {
-                        Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
-                            .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(zone.city).font(.system(size: 15, weight: .semibold)).lineLimit(1)
-                            Text(zone.offset(at: model.now) + (zone.zone.isDaylightSavingTime(for: model.now) ? " · 夏令时" : ""))
-                                .font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
-                        }
-                        Spacer(minLength: 4)
-                        Text(zone.time(at: model.now)).font(.system(size: 22, design: .rounded)).monospacedDigit()
-                        Image(systemName: "arrow.right").font(.system(size: 14)).foregroundColor(teal)
-                    }.padding(.vertical, 13).padding(.leading, 12).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityLabel("切换到\(zone.city)")
-                Button { picker = PickerRequest(slot: slot) } label: {
-                    Image(systemName: "pencil").font(.system(size: 13)).foregroundColor(.secondary)
-                        .frame(width: 33, height: 46).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityLabel("编辑常用时区\(slot + 1)").help("设置常用时区 \(slot + 1)，不更改系统时区")
+            Button { model.select(zone) } label: {
+                HStack(spacing: 10) {
+                    Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
+                        .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(zone.city).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                        Text(zone.offset(at: model.now) + (zone.zone.isDaylightSavingTime(for: model.now) ? " · 夏令时" : ""))
+                            .font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+                    }
+                    Spacer(minLength: 4)
+                    Text(zone.time(at: model.now)).font(.system(size: 22, design: .rounded)).monospacedDigit()
+                    Image(systemName: "arrow.right").font(.system(size: 14)).foregroundColor(teal)
+                }.padding(13).contentShape(Rectangle())
             }
-            .padding(.trailing, 5)
+            .buttonStyle(.plain).accessibilityLabel("切换到\(zone.city)")
             .background(selected ? teal.opacity(0.045) : Color.white.opacity(0.8))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? teal.opacity(0.5) : Color.black.opacity(0.04)))
@@ -330,7 +336,7 @@ func openDateSettings() {
         let host = NSHostingController(rootView: TimezoneView(model: model))
         window = NSWindow(contentViewController: host)
         window.delegate = self
-        window.title = "TZswitch"
+        window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.contentMinSize = NSSize(width: 460, height: 560)
         window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 630 : 730))
