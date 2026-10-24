@@ -1,109 +1,6 @@
 import AppKit
 import SwiftUI
 
-@MainActor final class AppModel: ObservableObject {
-    @Published var snapshot = SystemSnapshot.read()
-    @Published var now = Date()
-    @Published var busy = false
-    @Published var message: String?
-    @Published var failed = false
-    @Published var favorites = FavoriteZones(defaults: .standard)
-    @Published var favoritePicker: PickerRequest?
-    let authorizationReady: Bool
-    private var lastVerified: Destination?
-    private var pendingFavorite: Destination?
-    private var timer: Timer?
-
-    init() {
-        authorizationReady = [Destination.lusaka].allSatisfy {
-            var error: NSDictionary?
-            return NSAppleScript(source: SystemCommands.appleScript(for: SystemCommands.switchScript(to: $0)))?.compileAndReturnError(&error) == true
-        }
-        if !authorizationReady {
-            failed = true
-            message = "系统授权组件不可用，请重新打开 App 后重试。"
-        }
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.refresh() }
-        }
-    }
-
-    func refresh() {
-        now = Date()
-        snapshot = .read()
-        if let expected = lastVerified, !busy,
-           snapshot.destination?.isSameLocation(as: expected) != true || snapshot.automatic == true {
-            failed = true
-            message = "系统设置已被其他程序更改，请重新选择时区。"
-            lastVerified = nil
-        }
-    }
-
-    func editFavorite(_ slot: Int) {
-        guard !busy, favoritePicker == nil, favorites.slots.indices.contains(slot) else { return }
-        favoritePicker = PickerRequest(slot: slot)
-    }
-
-    func chooseFavorite(slot: Int, destination: Destination) -> Bool {
-        guard !busy else { return false }
-        var updated = favorites
-        guard updated.replace(slot: slot, with: destination, defaults: .standard) else {
-            failed = true
-            message = "两个常用时区请选择不同的时区。"
-            return false
-        }
-        favorites = updated
-        failed = false
-        pendingFavorite = destination
-        busy = true
-        message = "正在准备切换至\(destination.city)…"
-        favoritePicker = nil
-        return true
-    }
-
-    func favoritePickerDidDismiss() {
-        // Start authorization only after the picker has fully dismissed. Drain
-        // the request first so closing/reopening a picker cannot replay it.
-        guard let target = pendingFavorite else { return }
-        pendingFavorite = nil
-        busy = false
-        select(target)
-    }
-
-    func select(_ target: Destination) {
-        guard !busy else { return }
-        guard snapshot.destination?.isSameLocation(as: target) != true || snapshot.automatic != false else {
-            failed = false
-            message = "系统已使用\(target.city)时区。"
-            return
-        }
-        let script = SystemCommands.switchScript(to: target)
-        var compileError: NSDictionary?
-        guard NSAppleScript(source: SystemCommands.appleScript(for: script))?.compileAndReturnError(&compileError) == true else {
-            failed = true
-            message = "系统授权组件不可用，请重新打开 App 后重试。"
-            return
-        }
-        busy = true
-        failed = false
-        message = "请在 macOS 弹窗中授权…"
-        Task {
-            let result = await Task.detached { SystemCommands.runAuthorized(script) }.value
-            snapshot = .read()
-            busy = false
-            switch SwitchOutcome.evaluate(result: result, snapshot: snapshot, target: target) {
-            case .success:
-                lastVerified = target
-                message = "已切换至\(target.city)"
-            case .cancelled:
-                message = "已取消，系统设置未更改。"
-            case .failure(let reason):
-                failed = true
-                message = reason
-            }
-        }
-    }
-}
 
 private let ink = Color(red: 0.07, green: 0.10, blue: 0.17)
 private let teal = Color(red: 0.08, green: 0.45, blue: 0.43)
@@ -116,10 +13,6 @@ private enum WindowLayout {
     static let revision = 2
 }
 
-struct PickerRequest: Identifiable {
-    let slot: Int
-    var id: Int { slot }
-}
 
 struct TimezoneView: View {
     @ObservedObject var model: AppModel
@@ -302,28 +195,30 @@ struct ZonePicker: View {
             }
             ScrollViewReader { proxy in
                 HStack(alignment: .top, spacing: 8) {
-                    catalogList
-                    VStack(spacing: 4) {
-                        Text("UTC").font(.system(size: 10, weight: .semibold)).foregroundColor(.secondary)
-                        ScrollView {
-                            VStack(spacing: 1) {
-                                ForEach(catalog.groups) { group in
-                                    Button {
-                                        proxy.scrollTo("offset-\(group.id)", anchor: .top)
-                                    } label: {
-                                        Text(group.indexTitle)
-                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                            .frame(maxWidth: .infinity).frame(height: 20)
-                                            .contentShape(Rectangle())
+                    catalogList.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if !catalog.groups.isEmpty {
+                        VStack(spacing: 4) {
+                            Text("UTC").font(.system(size: 10, weight: .semibold)).foregroundColor(.secondary)
+                            ScrollView {
+                                VStack(spacing: 1) {
+                                    ForEach(catalog.groups) { group in
+                                        Button {
+                                            proxy.scrollTo("offset-\(group.id)", anchor: .top)
+                                        } label: {
+                                            Text(group.indexTitle)
+                                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                                .frame(maxWidth: .infinity).frame(height: 20)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain).foregroundColor(teal)
+                                        .accessibilityLabel("跳转到\(group.title)")
+                                        .help("跳转到\(group.title)")
                                     }
-                                    .buttonStyle(.plain).foregroundColor(teal)
-                                    .accessibilityLabel("跳转到\(group.title)")
-                                    .help("跳转到\(group.title)")
                                 }
                             }
-                        }
-                    }.frame(width: 58)
-                }
+                        }.frame(width: 58)
+                    }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)
@@ -388,6 +283,7 @@ struct ZonePicker: View {
             if visibleOffset != offset { visibleOffset = offset }
         }
         .id(search)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.white)
         .overlay(alignment: .topLeading) {
             if let currentGroup {
@@ -397,7 +293,12 @@ struct ZonePicker: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay {
-            if catalog.groups.isEmpty { Text("未找到结果，试试 utc9、utc-8 或北京。").foregroundColor(.secondary).font(.system(size: 12)) }
+            if catalog.groups.isEmpty {
+                Text("未找到结果，试试 utc9、utc-8 或北京。")
+                    .font(.system(size: 12)).foregroundColor(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.85)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.horizontal, 16)
+            }
         }
     }
 

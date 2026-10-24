@@ -5,6 +5,9 @@ BUILD="$PWD/.build"
 mkdir -p "$BUILD"
 /usr/bin/xcrun swiftc -module-cache-path "$BUILD/test-module-cache" Sources/TimezoneCore.swift Tests/main.swift -o "$BUILD/core-tests"
 "$BUILD/core-tests" "$BUILD"
+/usr/bin/xcrun swiftc -parse-as-library -module-cache-path "$BUILD/test-module-cache" \
+    Sources/TimezoneCore.swift Sources/AppModel.swift Tests/selection.swift -o "$BUILD/selection-tests" -framework AppKit
+"$BUILD/selection-tests"
 /usr/bin/python3 Tests/transaction.py "$BUILD"
 if /usr/bin/osacompile -o "$BUILD/standard-additions-probe.scpt" -e 'do shell script "true"' 2>"$BUILD/osa-probe.log"; then
     for city in LUN LAX KTM CHT UTC; do

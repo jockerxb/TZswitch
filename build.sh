@@ -12,7 +12,7 @@ APP="$PWD/dist/TZswitch.app"
 mkdir -p "$BUILD" "$APP/Contents/MacOS" "$APP/Contents/Resources"
 for CPU in "${ARCHS[@]}"; do
     /usr/bin/xcrun swiftc -O -parse-as-library -module-cache-path "$BUILD/module-cache-$CPU" \
-        -target "$CPU-apple-macosx13.0" Sources/TimezoneCore.swift Sources/main.swift \
+        -target "$CPU-apple-macosx13.0" Sources/TimezoneCore.swift Sources/AppModel.swift Sources/main.swift \
         -o "$BUILD/TZswitch-$CPU" -framework SwiftUI -framework AppKit
 done
 if [[ "$ARCH" == universal ]]; then

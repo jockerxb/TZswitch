@@ -171,11 +171,21 @@ struct FavoriteZones: Equatable {
         slots = saved.map { Destination(rawValue: $0) }
         if let first = slots[0], let second = slots[1], first.isSameLocation(as: second) { slots[1] = nil }
     }
-    /// Invalid input leaves the pair unchanged; a successful save persists both slots.
-    mutating func replace(slot: Int, with zone: Destination, defaults: UserDefaults) -> Bool {
-        guard slots.indices.contains(slot), slots[1 - slot]?.isSameLocation(as: zone) != true else { return false }
-        slots[slot] = zone
+    /// Stage a change without mutating either the visible pair or saved defaults.
+    func replacing(slot: Int, with zone: Destination) -> FavoriteZones? {
+        guard slots.indices.contains(slot), slots[1 - slot]?.isSameLocation(as: zone) != true else { return nil }
+        var updated = self
+        updated.slots[slot] = zone
+        return updated
+    }
+    func persist(defaults: UserDefaults) {
         defaults.set(slots.map { $0?.rawValue ?? "" }, forKey: Self.key)
+    }
+    /// Commit a validated replacement; callers awaiting authorization use staging instead.
+    mutating func replace(slot: Int, with zone: Destination, defaults: UserDefaults) -> Bool {
+        guard let updated = replacing(slot: slot, with: zone) else { return false }
+        self = updated
+        persist(defaults: defaults)
         return true
     }
 }
