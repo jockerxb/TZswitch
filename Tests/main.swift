@@ -50,6 +50,24 @@ check(ZoneCatalog.search("asia/kathmandu", at: winter).contains(Destination(rawV
 check(ZoneCatalog.search("UTC+05:45", at: winter).contains(Destination(rawValue: "Asia/Kathmandu")!), "偏移搜索")
 check(ZoneCatalog.search("UTC-08:00", at: winter).contains(.losAngeles), "负偏移搜索")
 check(ZoneCatalog.search("UTC−08:00", at: winter).contains(.losAngeles), "支持从界面复制的 Unicode 负号")
+for (queries, seconds) in [
+    (["utc9", "UTC+9", "utc 9", "utc + 09", "UTC+09:00"], 32400),
+    (["utc-8", "UTC − 08", "UTC-08:00"], -28800),
+    (["utc5:30", "utc+05:30", "utc5.5"], 19800),
+    (["utc5:45", "utc5.75"], 20700),
+    (["utc0", "utc+0", "utc-0"], 0)
+] {
+    let expected = ZoneCatalog.choices.filter { $0.zone.secondsFromGMT(for: winter) == seconds }
+    for query in queries {
+        check(Set(ZoneCatalog.search(query, at: winter)) == Set(expected) && !expected.isEmpty,
+              "简写偏移精确匹配所有城市：\(query)")
+    }
+}
+check(ZoneCatalog.search("utc8 北京", at: winter) == [Destination(rawValue: "Asia/Shanghai")!], "偏移与城市可以组合搜索")
+check(ZoneCatalog.search("utc9 北京", at: winter).isEmpty, "组合搜索必须同时符合偏移和城市")
+for invalid in ["utc99", "utc+14:01", "utc9:70", "utc9:7", "utc9.999", "utc-13"] {
+    check(ZoneCatalog.search(invalid, at: winter).isEmpty, "无效偏移不误匹配城市：\(invalid)")
+}
 check(ZoneCatalog.search("  ", at: winter).count == ZoneCatalog.choices.count, "空白查询展示去重后的时区")
 let honolulu = Destination(rawValue: "Pacific/Honolulu")!
 let johnston = Destination(rawValue: "Pacific/Johnston")!
@@ -117,6 +135,9 @@ for date in [winter, summer] {
 }
 let fractionalGroups = ZoneCatalog.groups("UTC+05:45", at: winter)
 check(fractionalGroups.count == 1 && fractionalGroups[0].seconds == 20700, "45 分钟时区独立分组")
+check(fractionalGroups.first?.indexTitle == "+5:45", "导航保留分数小时")
+check(ZoneCatalog.groups("utc-8", at: winter).first?.indexTitle == "−8", "导航负时区标识")
+check(ZoneCatalog.groups("utc0", at: winter).first?.indexTitle == "+0", "导航零时区标识")
 let live = SystemSnapshot.read()
 check(TimeZone(identifier: live.identifier) != nil, "当前系统时区可以被解析")
 print("LIVE timezone=\(live.identifier), automatic=\(String(describing: live.automatic))")

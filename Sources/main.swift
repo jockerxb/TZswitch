@@ -264,22 +264,54 @@ struct ZonePicker: View {
             HStack {
                 Text("设置常用时区 \(slot + 1)").font(.system(size: 18, weight: .semibold))
                 Spacer()
-                Button("完成") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button { dismiss() } label: { Label("关闭", systemImage: "xmark") }
+                    .keyboardShortcut(.cancelAction).accessibilityLabel("关闭时区选择")
             }
             Text("选一个城市即可保存，不会立即切换系统时区。")
                 .font(.system(size: 12)).foregroundColor(.secondary)
-            TextField("搜索城市，例如：北京、洛杉矶", text: $search)
+            TextField("搜索时区/城市，例如：utc9、北京", text: $search)
                 .textFieldStyle(.roundedBorder).accessibilityLabel("搜索全球时区")
             HStack {
                 Text("\(catalog.groups.reduce(0) { $0 + $1.zones.count }) 个时区").font(.system(size: 11)).foregroundColor(.secondary)
                 Spacer()
                 if let error { Text(error).font(.system(size: 11)).foregroundColor(.red) }
             }
-            // Avoid native List's floating section headers, which can shift the
-            // initial viewport during sheet presentation on macOS.
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(catalog.groups) { group in
+            ScrollViewReader { proxy in
+                HStack(alignment: .top, spacing: 8) {
+                    catalogList
+                    VStack(spacing: 4) {
+                        Text("UTC").font(.system(size: 10, weight: .semibold)).foregroundColor(.secondary)
+                        ScrollView {
+                            VStack(spacing: 1) {
+                                ForEach(catalog.groups) { group in
+                                    Button {
+                                        proxy.scrollTo("offset-\(group.id)", anchor: .top)
+                                    } label: {
+                                        Text(group.indexTitle)
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                            .frame(maxWidth: .infinity).frame(height: 20)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain).foregroundColor(teal)
+                                    .accessibilityLabel("跳转到\(group.title)")
+                                    .help("跳转到\(group.title)")
+                                }
+                            }
+                        }
+                    }.frame(width: 58)
+                }
+            }
+        }
+        .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)
+        .onChange(of: search) { query in catalog.search(query) }
+    }
+    private var catalogList: some View {
+        // This small catalog uses measured stacks so scrollTo has exact group
+        // bounds; lazy height estimates can clip a destination header.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(catalog.groups) { group in
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(group.title)
                             .font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundColor(teal)
                             .padding(.horizontal, 12).padding(.top, 16).padding(.bottom, 8)
@@ -306,18 +338,17 @@ struct ZonePicker: View {
                             }.buttonStyle(.plain).accessibilityLabel("选择\(zone.city)，\(zone.rawValue)")
                             Divider().padding(.horizontal, 8)
                         }
-                    }
-                }.padding(.horizontal, 6).padding(.bottom, 12)
-            }
-            .id(search)
-            .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay {
-                if catalog.groups.isEmpty { Text("未找到时区，请尝试城市英文名或 IANA 标识。").foregroundColor(.secondary).font(.system(size: 12)) }
-            }
+                    }.id("offset-\(group.id)")
+                }
+            }.padding(.horizontal, 6).padding(.bottom, 12)
         }
-        .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)
-        .onChange(of: search) { query in catalog.search(query) }
+        .id(search)
+        .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            if catalog.groups.isEmpty { Text("未找到结果，试试 utc9、utc-8 或北京。").foregroundColor(.secondary).font(.system(size: 12)) }
+        }
     }
+
 }
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {

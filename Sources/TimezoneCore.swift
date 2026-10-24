@@ -99,8 +99,30 @@ enum ZoneCatalog {
         return (representative.rawValue, names + aliases)
     })
     static func search(_ query: String, at date: Date) -> [Destination] {
-        let terms = query.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "−", with: "-").split(separator: " ")
-        let matches = terms.isEmpty ? choices : choices.filter { destination in
+        var textQuery = query.replacingOccurrences(of: "−", with: "-")
+        var offsetSeconds: Int?
+        // Parse UTC as an offset, rather than matching unrelated digits in IDs.
+        let pattern = #"(?i)\butc\s*([+-]?)\s*([0-9]{1,2})(?::([0-9]{2})|\.([0-9]{1,2}))?(?![0-9:.])"#
+        let expression = try! NSRegularExpression(pattern: pattern)
+        let fullRange = NSRange(textQuery.startIndex..<textQuery.endIndex, in: textQuery)
+        if let match = expression.firstMatch(in: textQuery, range: fullRange) {
+            func component(_ index: Int) -> String {
+                guard let range = Range(match.range(at: index), in: textQuery) else { return "" }
+                return String(textQuery[range])
+            }
+            let hours = Int(component(2))!
+            let decimal = component(4)
+            let minutes = decimal.isEmpty ? (Int(component(3)) ?? 0)
+                : Int((Double("0." + decimal)! * 60).rounded())
+            let sign = component(1) == "-" ? -1 : 1
+            let total = sign * (hours * 3600 + minutes * 60)
+            guard minutes < 60, (-12 * 3600...14 * 3600).contains(total) else { return [] }
+            offsetSeconds = total
+            textQuery.replaceSubrange(Range(match.range, in: textQuery)!, with: " ")
+        }
+        let terms = textQuery.split(whereSeparator: \.isWhitespace)
+        let matches = choices.filter { destination in
+            if let offsetSeconds, destination.zone.secondsFromGMT(for: date) != offsetSeconds { return false }
             let text = (searchText[destination.rawValue] ?? "") + " " + destination.offset(at: date).replacingOccurrences(of: "−", with: "-")
             return terms.allSatisfy { text.range(of: String($0), options: [.caseInsensitive, .diacriticInsensitive]) != nil }
         }
@@ -117,6 +139,12 @@ enum ZoneCatalog {
         let title: String
         let zones: [Destination]
         var id: Int { seconds }
+        var indexTitle: String {
+            let minutes = abs(seconds) / 60
+            let sign = seconds >= 0 ? "+" : "−"
+            let hours = "\(sign)\(minutes / 60)"
+            return minutes % 60 == 0 ? hours : hours + String(format: ":%02d", minutes % 60)
+        }
     }
     static func groups(_ query: String, at date: Date) -> [OffsetGroup] {
         let matches = search(query, at: date)
