@@ -75,7 +75,7 @@ import SwiftUI
             switch SwitchOutcome.evaluate(result: result, snapshot: snapshot, target: target) {
             case .success:
                 lastVerified = target
-                message = "已切换至\(target.city)，退出 App 后继续生效。"
+                message = "已切换至\(target.city)"
             case .cancelled:
                 message = "已取消，系统设置未更改。"
             case .failure(let reason):
@@ -88,6 +88,14 @@ import SwiftUI
 
 private let ink = Color(red: 0.07, green: 0.10, blue: 0.17)
 private let teal = Color(red: 0.08, green: 0.45, blue: 0.43)
+
+private enum WindowLayout {
+    static let width: CGFloat = 460
+    static let minimumHeight: CGFloat = 480
+    static let standardHeight: CGFloat = 510
+    static let setupHeight: CGFloat = 610
+    static let revision = 2
+}
 
 struct PickerRequest: Identifiable {
     let slot: Int
@@ -121,15 +129,15 @@ struct TimezoneView: View {
                         Circle().fill(teal).frame(width: 6, height: 6)
                         Text("系统当前时区").font(.system(size: 11, weight: .medium))
                     }.foregroundColor(.secondary)
-                    HStack(alignment: .center) {
-                        Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
-                        Spacer(minLength: 12)
+                    Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(model.snapshot.destination?.city ?? model.snapshot.identifier)
+                            .font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.85)
+                        Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
+                            .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary).fixedSize()
+                        Spacer(minLength: 8)
                         Text(currentDate).font(.system(size: 11)).foregroundColor(.secondary).fixedSize()
                     }
-                    Text(model.snapshot.destination?.city ?? model.snapshot.identifier)
-                        .font(.system(size: 15, weight: .medium))
-                    Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
-                        .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                 }.padding(20).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 19))
 
                 VStack(spacing: 10) {
@@ -174,20 +182,26 @@ struct TimezoneView: View {
                     }
                     ForEach(0..<2, id: \.self) { slot in favoriteRow(slot) }
                 }
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top, spacing: 7) {
-                        Image(systemName: model.failed ? "exclamationmark.circle" : "checkmark.shield")
-                        Text(model.message ?? (model.snapshot.automatic == true
-                            ? "切换需要管理员授权，并会关闭自动时区。"
-                            : "切换需要 macOS 管理员授权。"))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }.font(.system(size: 11)).foregroundColor(model.failed ? .red : .secondary)
-                    Text("关闭窗口即退出 · 系统时区会继续保留").font(.system(size: 10)).foregroundColor(.secondary)
-                }
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: model.failed ? "exclamationmark.circle" : "checkmark.shield")
+                    if model.failed || model.busy {
+                        // Authorization and error details remain fully readable.
+                        Text(model.message ?? "正在处理…").fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        let status = model.message ?? (model.snapshot.automatic == true
+                            ? "切换需管理员授权并关闭自动时区"
+                            : "切换需管理员授权")
+                        Text(status + " · 关闭即退出，时区保留")
+                            .lineLimit(1).minimumScaleFactor(0.85)
+                            .help(status + " · 关闭窗口即退出，系统时区会继续保留")
+                    }
+                }.font(.system(size: 10)).foregroundColor(model.failed ? .red : .secondary)
+
             }
             .padding(26).frame(maxWidth: 650).frame(maxWidth: .infinity)
         }
-        .frame(minWidth: 460, idealWidth: 460, minHeight: 520, idealHeight: 560)
+        .frame(minWidth: WindowLayout.width, idealWidth: WindowLayout.width,
+               minHeight: WindowLayout.minimumHeight, idealHeight: WindowLayout.standardHeight)
         .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
         .sheet(item: $picker) { request in ZonePicker(model: model, slot: request.slot) }
     }
@@ -330,18 +344,19 @@ struct ZonePicker: View {
         window.delegate = self
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.contentMinSize = NSSize(width: 460, height: 520)
-        window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 560 : 660))
+        let initialSize = NSSize(width: WindowLayout.width, height: model.favorites.isComplete ? WindowLayout.standardHeight : WindowLayout.setupHeight)
+        window.contentMinSize = NSSize(width: WindowLayout.width, height: WindowLayout.minimumHeight)
+        window.setContentSize(initialSize)
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.isReleasedWhenClosed = false
         window.center()
         window.setFrameAutosaveName("TimezoneSwitchWindow")
-        // A saved frame can restore the old footer's height after setContentSize.
+        // Migrate saved geometry when the content layout changes.
         // Migrate geometry once, then preserve future user resizing as usual.
         let layoutRevisionKey = "windowLayoutRevision"
-        if UserDefaults.standard.integer(forKey: layoutRevisionKey) < 1 {
-            window.setContentSize(NSSize(width: 460, height: model.favorites.isComplete ? 560 : 660))
-            UserDefaults.standard.set(1, forKey: layoutRevisionKey)
+        if UserDefaults.standard.integer(forKey: layoutRevisionKey) < WindowLayout.revision {
+            window.setContentSize(initialSize)
+            UserDefaults.standard.set(WindowLayout.revision, forKey: layoutRevisionKey)
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
