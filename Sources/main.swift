@@ -126,11 +126,12 @@ struct TimezoneView: View {
                 HStack(spacing: 10) {
                     Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
                         .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Text("点击选择城市").font(.system(size: 14, weight: .medium))
+                    Text("点击设置常用城市\(slot + 1)")
+                        .font(.system(size: 14, weight: .semibold)).foregroundColor(teal)
                     Spacer()
                     Image(systemName: "plus").foregroundColor(teal)
                 }.padding(13).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("选择常用城市 \(slot + 1)")
+            }.buttonStyle(.plain).accessibilityLabel("点击设置常用城市\(slot + 1)")
                 .background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(model.busy)
         }
