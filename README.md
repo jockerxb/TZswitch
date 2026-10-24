@@ -2,14 +2,14 @@
 
 # TZswitch
 
-A small macOS app for switching the **system timezone**. Choose any timezone available on your Mac, and keep two favorites for quick switching.
+A small macOS app for switching the **system timezone**. Choose any timezone available on your Mac, and keep one or two favorites. One city is enough to start.
 
 [中文说明](README.zh-CN.md) · [Download](https://github.com/jockerxb/TZswitch/releases/latest) · [MIT License](LICENSE)
 
 ## Use
 
 1. Download the universal ZIP from Releases, extract it, and drag **TZswitch.app** into Applications.
-2. On first launch, click the cards numbered 1 and 2 to choose your favorite cities. Search the global catalog, grouped by current UTC offset from lowest to highest; the current group header stays pinned while scrolling. Use the right-hand UTC index to jump between groups. Counts distinguish current UTC-offset groups from deduplicated city entries. Offset searches accept `utc9`, `utc-8`, and `utc5:30`. Choosing a city immediately requests macOS administrator authorization to switch. The new favorite is saved only after verified success; cancellation or failure preserves the previous favorite and system timezone. Click Close or press Esc to return without choosing.
+2. On first launch, choose a favorite city in either empty slot to get started. The second city is optional. Search the global catalog, grouped by current UTC offset from lowest to highest; the current group header stays pinned while scrolling. Use the right-hand UTC index to jump between groups. Counts distinguish current UTC-offset groups from deduplicated city entries. Offset searches accept `utc9`, `utc-8`, and `utc5:30`. Choosing a city immediately requests macOS administrator authorization to switch. The new favorite is saved only after verified success; cancellation or failure preserves the previous favorite and system timezone. Click Close or press Esc to return without choosing.
 3. Click the card body to apply a favorite; click its right-hand `>` area to change the city. The green border marks the active timezone.
 4. Approve the macOS administrator prompt. The app reads back the system settings before reporting success. Close the window to quit; standard macOS minimize and fullscreen controls are available.
 
@@ -19,7 +19,7 @@ The release uses an **ad hoc signature**. It is not Developer ID signed or notar
 
 ## Behavior
 
-- Two customizable, distinct favorite timezones. New installs start with empty slots and a setup guide; existing users keep their saved choices. Partially completed setup is saved, so you can continue after reopening.
+- One or two customizable, distinct favorite timezones. New installs start with empty slots; choosing one city completes setup. A single favorite stays usable after reopening, and existing choices are preserved.
 - The timezone catalog and daylight saving rules come from macOS [Foundation TimeZone](https://developer.apple.com/documentation/foundation/timezone). The list follows the system timezone database rather than a bundled city list.
 - A manual switch disables automatic timezone selection to keep macOS from switching back based on location. Network time synchronization is left alone.
 - Launching, dismissing the picker without choosing, and quitting do **not** change the system timezone. Choosing a city or clicking a card requests authorization to switch. Quitting keeps the last applied system setting; reopening reads the actual current setting.

@@ -156,13 +156,13 @@ enum ZoneCatalog {
     }
 }
 
-/// Two fixed slots can be empty until onboarding is complete. Never modifies macOS.
+/// Up to two favorites; one saved city completes setup. Never modifies macOS.
 struct FavoriteZones: Equatable {
     static let key = "favoriteTimezones.v3"
     static let legacyKey = "quickTimezones.v2"
     private(set) var slots: [Destination?]
-    var isComplete: Bool { slots.allSatisfy { $0 != nil } }
     var configuredCount: Int { slots.compactMap { $0 }.count }
+    var needsSetup: Bool { configuredCount == 0 }
 
     init(defaults: UserDefaults) {
         // Preserve existing users' choices; new installs start with two empty slots.

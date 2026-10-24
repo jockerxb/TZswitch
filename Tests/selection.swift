@@ -83,8 +83,30 @@ private final class StubSystem: @unchecked Sendable {
             let expected: [Destination?] = succeeds ? [target, nil] : [nil, nil]
             check(!model.busy && model.favorites.slots == expected && FavoriteZones(defaults: defaults).slots == expected,
                   succeeds ? "首次设置成功后保存一个城市" : "首次设置取消后仍为两个空位")
+            check(model.favorites.needsSetup == !succeeds && FavoriteZones(defaults: defaults).needsSetup == !succeeds,
+                  succeeds ? "只设一个城市即结束引导，重启后不要求第二个" : "首次授权取消后仍显示设置指引")
+            if succeeds {
+                let calls = system.count
+                model.select(target)
+                check(!model.busy && system.count == calls, "只有一个常用城市时卡片操作可正常使用")
+            }
             defaults.removePersistentDomain(forName: suite)
         }
+        let optionalSuite = suitePrefix + ".optional"
+        let optionalDefaults = UserDefaults(suiteName: optionalSuite)!
+        optionalDefaults.set(["Africa/Lusaka", ""], forKey: FavoriteZones.key)
+        let optionalSystem = StubSystem(initial: original, result: CommandResult(status: 1, output: "(-128)"))
+        let single = AppModel(defaults: optionalDefaults, snapshotReader: { optionalSystem.read() },
+            authorizer: { optionalSystem.run($0) }, compiler: { _ in true })
+        single.editFavorite(1)
+        _ = single.chooseFavorite(slot: 1, destination: target)
+        single.favoritePickerDidDismiss()
+        let deadline = Date().addingTimeInterval(3)
+        while single.busy && Date() < deadline { try? await Task.sleep(nanoseconds: 1_000_000) }
+        check(!single.busy && !single.favorites.needsSetup && single.favorites.slots == [.lusaka, nil]
+              && !FavoriteZones(defaults: optionalDefaults).needsSetup,
+              "取消添加第二个城市后仍保持单城市可用状态")
+        optionalDefaults.removePersistentDomain(forName: optionalSuite)
         let suite = suitePrefix + ".active"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.set(["Asia/Tokyo", "America/Los_Angeles"], forKey: FavoriteZones.key)

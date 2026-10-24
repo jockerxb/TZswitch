@@ -92,17 +92,21 @@ check(ZoneCatalog.search("nothing-matches-this", at: winter).isEmpty, "无匹配
 let suite = "TZswitch.Tests." + UUID().uuidString
 let defaults = UserDefaults(suiteName: suite)!
 var pair = FavoriteZones(defaults: defaults)
-check(pair.slots == [nil, nil] && !pair.isComplete, "新用户没有预设城市，进入设置引导")
+check(pair.slots == [nil, nil] && pair.needsSetup, "新用户没有预设城市，进入设置引导")
 let tokyo = Destination(rawValue: "Asia/Tokyo")!
 check(pair.replace(slot: 0, with: tokyo, defaults: defaults), "保存第一个常用时区")
-check(pair.configuredCount == 1 && !pair.isComplete, "设置一项后继续引导")
-check(FavoriteZones(defaults: defaults).slots == [tokyo, nil], "设置到一半退出重开可继续")
+check(pair.configuredCount == 1 && !pair.needsSetup, "设置一个城市后即完成首次设置")
+check(FavoriteZones(defaults: defaults).slots == [tokyo, nil] && !FavoriteZones(defaults: defaults).needsSetup,
+      "单城市偏好重启后仍可使用，无需补第二个")
 check(pair.replace(slot: 1, with: .losAngeles, defaults: defaults), "保存第二个常用时区")
-check(pair.isComplete && pair.configuredCount == 2, "两项设置完成后结束引导")
+check(!pair.needsSetup && pair.configuredCount == 2, "第二个城市为可选项")
 check(FavoriteZones(defaults: defaults).slots == [tokyo, .losAngeles], "重新读取已保存常用时区")
 check(!pair.replace(slot: 1, with: tokyo, defaults: defaults), "拒绝重复常用时区")
 check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝不存在的常用位置")
 check(pair.slots == [tokyo, .losAngeles], "失败的编辑不修改现有选择")
+defaults.set(["", tokyo.rawValue], forKey: FavoriteZones.key)
+check(!FavoriteZones(defaults: defaults).needsSetup && FavoriteZones(defaults: defaults).configuredCount == 1,
+      "只设置编号 2 也完成首次设置")
 var aliases = FavoriteZones(defaults: UserDefaults(suiteName: suite + ".aliases")!)
 check(aliases.replace(slot: 0, with: johnston, defaults: defaults), "旧别名可以保存")
 check(!aliases.replace(slot: 1, with: honolulu, defaults: defaults), "常用时区拒绝同一城市的不同别名")
@@ -111,7 +115,7 @@ check(FavoriteZones(defaults: defaults).slots == [johnston, nil], "旧偏好中�
 defaults.removeObject(forKey: FavoriteZones.key)
 defaults.set(["Africa/Lusaka", "America/Los_Angeles"], forKey: FavoriteZones.legacyKey)
 var migrated = FavoriteZones(defaults: defaults)
-check(migrated.slots == [.lusaka, .losAngeles] && migrated.isComplete, "保留旧版用户已保存的两个城市")
+check(migrated.slots == [.lusaka, .losAngeles] && !migrated.needsSetup, "保留旧版用户已保存的两个城市")
 check(migrated.replace(slot: 1, with: tokyo, defaults: defaults), "升级后继续编辑")
 check(FavoriteZones(defaults: defaults).slots == [.lusaka, tokyo], "新偏好优先于旧版数据")
 for (saved, expected) in [

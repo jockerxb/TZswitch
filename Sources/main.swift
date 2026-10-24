@@ -53,14 +53,9 @@ struct TimezoneView: View {
                         Text("常用时区").font(.system(size: 13, weight: .semibold))
                         Spacer()
                         if model.busy { ProgressView().controlSize(.small) }
-                        if !model.favorites.isComplete {
-                            Text("已设置 \(model.favorites.configuredCount)/2").font(.system(size: 11)).foregroundColor(.secondary)
-                        }
                     }
-                    if !model.favorites.isComplete {
-                        Text(model.favorites.configuredCount == 0
-                             ? "点击 1 和 2，选择常用城市"
-                             : "再选一个城市，就可以开始切换了")
+                    if model.favorites.needsSetup {
+                        Text("设置一个常用城市，即可开始使用")
                             .font(.system(size: 12)).foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -122,16 +117,17 @@ struct TimezoneView: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? teal.opacity(0.5) : Color.black.opacity(0.04)))
             .disabled(model.busy)
         } else {
+            let prompt = model.favorites.needsSetup ? "点击设置常用城市\(slot + 1)" : "添加常用城市（可选）"
             Button { model.editFavorite(slot) } label: {
                 HStack(spacing: 10) {
                     Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
                         .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Text("点击设置常用城市\(slot + 1)")
+                    Text(prompt)
                         .font(.system(size: 14, weight: .semibold)).foregroundColor(teal)
                     Spacer()
                     Image(systemName: "plus").foregroundColor(teal)
                 }.padding(13).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("点击设置常用城市\(slot + 1)")
+            }.buttonStyle(.plain).accessibilityLabel(prompt)
                 .background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(model.busy)
         }
@@ -315,7 +311,7 @@ struct ZonePicker: View {
         window.delegate = self
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        let initialSize = NSSize(width: WindowLayout.width, height: model.favorites.isComplete ? WindowLayout.standardHeight : WindowLayout.setupHeight)
+        let initialSize = NSSize(width: WindowLayout.width, height: model.favorites.needsSetup ? WindowLayout.setupHeight : WindowLayout.standardHeight)
         window.contentMinSize = NSSize(width: WindowLayout.width, height: WindowLayout.minimumHeight)
         window.setContentSize(initialSize)
         window.collectionBehavior.insert(.fullScreenPrimary)
