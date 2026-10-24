@@ -120,17 +120,21 @@ struct TimezoneView: View {
                     HStack(spacing: 6) {
                         Circle().fill(teal).frame(width: 6, height: 6)
                         Text("系统当前时区").font(.system(size: 11, weight: .medium))
-                        Spacer()
-                        Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
-                            .font(.system(size: 11, design: .monospaced))
                     }.foregroundColor(.secondary)
-                    Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
-                    HStack {
-                        Text(model.snapshot.destination?.city ?? model.snapshot.identifier).font(.system(size: 15, weight: .medium))
-                        Spacer()
-                        Text(currentDate).font(.system(size: 11)).foregroundColor(.secondary)
+                    HStack(alignment: .center) {
+                        Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
+                        Spacer(minLength: 12)
+                        Text(currentDate).font(.system(size: 11)).foregroundColor(.secondary).fixedSize()
                     }
-                    Text(model.snapshot.identifier).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+                    Text(model.snapshot.destination?.city ?? model.snapshot.identifier)
+                        .font(.system(size: 15, weight: .medium))
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(model.snapshot.identifier).font(.system(size: 10, design: .monospaced))
+                            .lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: 12)
+                        Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
+                            .font(.system(size: 11, design: .monospaced)).fixedSize()
+                    }.foregroundColor(.secondary)
                 }.padding(20).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 19))
 
                 VStack(spacing: 10) {
