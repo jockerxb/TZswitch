@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 
@@ -7,10 +8,10 @@ private let teal = Color(red: 0.08, green: 0.45, blue: 0.43)
 
 private enum WindowLayout {
     static let width: CGFloat = 460
-    static let minimumHeight: CGFloat = 480
-    static let standardHeight: CGFloat = 510
-    static let setupHeight: CGFloat = 540
-    static let revision = 2
+    static let minimumHeight: CGFloat = 460
+    static let standardHeight: CGFloat = 480
+    static let setupHeight: CGFloat = 504
+    static let revision = 3
 }
 
 
@@ -77,7 +78,8 @@ struct TimezoneView: View {
                 }.font(.system(size: 10)).foregroundColor(model.failed ? .red : .secondary)
 
             }
-            .padding(26).frame(maxWidth: 650).frame(maxWidth: .infinity)
+            .padding(.horizontal, 26).padding(.top, 26).padding(.bottom, 16)
+            .frame(maxWidth: 650).frame(maxWidth: .infinity)
         }
         .frame(minWidth: WindowLayout.width, idealWidth: WindowLayout.width,
                minHeight: WindowLayout.minimumHeight, idealHeight: WindowLayout.standardHeight)
@@ -304,12 +306,14 @@ struct ZonePicker: View {
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let model = AppModel()
     private var window: NSWindow!
+    private var setupLayoutObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let host = NSHostingController(rootView: TimezoneView(model: model))
         window = NSWindow(contentViewController: host)
         window.delegate = self
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
+        window.titleVisibility = .hidden
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         let initialSize = NSSize(width: WindowLayout.width, height: model.favorites.needsSetup ? WindowLayout.setupHeight : WindowLayout.standardHeight)
         window.contentMinSize = NSSize(width: WindowLayout.width, height: WindowLayout.minimumHeight)
@@ -325,6 +329,8 @@ struct ZonePicker: View {
             window.setContentSize(initialSize)
             UserDefaults.standard.set(WindowLayout.revision, forKey: layoutRevisionKey)
         }
+        setupLayoutObserver = model.$favorites.map(\.needsSetup).removeDuplicates().dropFirst()
+            .sink { [weak self] needsSetup in self?.updateSetupHeight(needsSetup) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         let menu = NSMenu()
@@ -336,6 +342,18 @@ struct ZonePicker: View {
         appItem.submenu = appMenu
         menu.addItem(appItem)
         NSApp.mainMenu = menu
+    }
+
+    private func updateSetupHeight(_ needsSetup: Bool) {
+        let previousHeight = needsSetup ? WindowLayout.standardHeight : WindowLayout.setupHeight
+        guard !window.isZoomed, !window.styleMask.contains(.fullScreen),
+              let height = window.contentView?.frame.height, abs(height - previousHeight) < 1 else { return }
+        let target = needsSetup ? WindowLayout.setupHeight : WindowLayout.standardHeight
+        let difference = target - height
+        var frame = window.frame
+        frame.size.height += difference
+        frame.origin.y -= difference // Keep the top edge still when the setup hint disappears.
+        window.setFrame(frame, display: true)
     }
 
     @objc private func showWindow() {
