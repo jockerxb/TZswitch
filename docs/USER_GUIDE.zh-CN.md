@@ -16,6 +16,8 @@ TZswitch 用于修改 Mac 的**系统时区**。设置一个常用城市即可�
 
 当前安装包使用 ad hoc 签名，尚未经过 Developer ID 签名与 Apple 公证，因此下载后可能出现“未打开 TZswitch，Apple 无法验证……”的提示。
 
+<img src="images/macos-unverified-app.png" width="420" alt="macOS 提示未打开 TZswitch，Apple 无法验证 App">
+
 确认安装包来自[本仓库 Releases](https://github.com/jockerxb/TZswitch/releases/latest) 后，按以下步骤打开：
 
 1. 在拦截弹窗中点击 **“完成”**。
