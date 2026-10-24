@@ -29,6 +29,9 @@ struct Destination: Hashable, Identifiable {
     var zone: TimeZone { TimeZone(identifier: rawValue)! }
     var city: String { ZoneCatalog.labels[rawValue]?.city ?? rawValue }
     var englishCity: String { ZoneCatalog.labels[rawValue]?.english ?? rawValue }
+    var ruleData: Data? { try? Data(contentsOf: URL(fileURLWithPath: "/usr/share/zoneinfo/" + rawValue)) }
+    var catalogID: String { ZoneCatalog.representatives[rawValue] ?? rawValue }
+    func isSameLocation(as other: Destination) -> Bool { catalogID == other.catalogID }
 
     func offset(at date: Date) -> String {
         let minutes = zone.secondsFromGMT(for: date) / 60
@@ -57,14 +60,48 @@ enum ZoneCatalog {
             let fallback = destination.rawValue.components(separatedBy: "/").last!.replacingOccurrences(of: "_", with: " ")
             let cn = chinese.string(from: Date()), en = english.string(from: Date())
             let isUTC = ["Etc/UTC", "UTC"].contains(destination.rawValue)
-            return (destination.rawValue, Label(city: isUTC ? "协调世界时" : (cn.isEmpty || cn == "未知城市" ? fallback : cn),
+            return (destination.rawValue, Label(city: destination.rawValue == "Asia/Shanghai" ? "北京 / 上海" : (isUTC ? "协调世界时" : (cn.isEmpty || cn == "未知城市" ? fallback : cn)),
                                                english: isUTC ? "Coordinated Universal Time" : (en.isEmpty || en == "Unknown City" ? fallback : en)))
         })
     }()
+
+    private struct LocationKey: Hashable { let city: String; let rules: Data }
+    // Merge compatibility names only when both the localized city and complete
+    // TZif rules agree. Equal current offsets alone must never merge cities.
+    private static let locations: [[Destination]] = {
+        let table = (try? String(contentsOfFile: "/usr/share/zoneinfo/zone.tab", encoding: .utf8)) ?? ""
+        let primary = Set(table.split(separator: "\n").compactMap { line -> String? in
+            let fields = line.split(separator: "\t")
+            return !line.hasPrefix("#") && fields.count >= 3 ? String(fields[2]) : nil
+        })
+        let grouped = Dictionary(grouping: Destination.allCases) {
+            LocationKey(city: $0.englishCity, rules: $0.ruleData ?? Data($0.rawValue.utf8))
+        }
+        var result: [[Destination]] = []
+        for members in grouped.values {
+            let sorted = members.sorted { left, right in
+                let a = left.rawValue == "Etc/UTC" || primary.contains(left.rawValue)
+                let b = right.rawValue == "Etc/UTC" || primary.contains(right.rawValue)
+                if a != b { return a }
+                return left.rawValue < right.rawValue
+            }
+            result.append(sorted)
+        }
+        return result.sorted { $0[0].rawValue < $1[0].rawValue }
+    }()
+    static let representatives: [String: String] = Dictionary(uniqueKeysWithValues:
+        locations.flatMap { members in members.map { ($0.rawValue, members[0].rawValue) } })
+    static let choices: [Destination] = locations.map { $0[0] }
+    private static let searchText: [String: String] = Dictionary(uniqueKeysWithValues: locations.map { members in
+        let representative = members[0]
+        let names = members.map { "\($0.city) \($0.englishCity) \($0.rawValue.replacingOccurrences(of: "_", with: " ")) \($0.rawValue)" }.joined(separator: " ")
+        let aliases = representative.rawValue == "Asia/Shanghai" ? " 北京 Beijing Peking 北京时间 中国标准时间 China Standard Time" : ""
+        return (representative.rawValue, names + aliases)
+    })
     static func search(_ query: String, at date: Date) -> [Destination] {
         let terms = query.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "−", with: "-").split(separator: " ")
-        let matches = terms.isEmpty ? Destination.allCases : Destination.allCases.filter { destination in
-            let text = "\(destination.city) \(destination.englishCity) \(destination.rawValue.replacingOccurrences(of: "_", with: " ")) \(destination.rawValue) \(destination.offset(at: date).replacingOccurrences(of: "−", with: "-"))"
+        let matches = terms.isEmpty ? choices : choices.filter { destination in
+            let text = (searchText[destination.rawValue] ?? "") + " " + destination.offset(at: date).replacingOccurrences(of: "−", with: "-")
             return terms.allSatisfy { text.range(of: String($0), options: [.caseInsensitive, .diacriticInsensitive]) != nil }
         }
         return matches.sorted {
@@ -104,11 +141,11 @@ struct FavoriteZones: Equatable {
         let saved = defaults.stringArray(forKey: Self.key) ?? defaults.stringArray(forKey: Self.legacyKey)
         guard let saved, saved.count == 2 else { slots = [nil, nil]; return }
         slots = saved.map { Destination(rawValue: $0) }
-        if slots[0] != nil && slots[0] == slots[1] { slots[1] = nil }
+        if let first = slots[0], let second = slots[1], first.isSameLocation(as: second) { slots[1] = nil }
     }
     /// Invalid input leaves the pair unchanged; a successful save persists both slots.
     mutating func replace(slot: Int, with zone: Destination, defaults: UserDefaults) -> Bool {
-        guard slots.indices.contains(slot), slots[1 - slot] != zone else { return false }
+        guard slots.indices.contains(slot), slots[1 - slot]?.isSameLocation(as: zone) != true else { return false }
         slots[slot] = zone
         defaults.set(slots.map { $0?.rawValue ?? "" }, forKey: Self.key)
         return true

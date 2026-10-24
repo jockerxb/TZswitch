@@ -9,11 +9,11 @@ A small macOS app for switching the **system timezone**. Choose any timezone ava
 ## Use
 
 1. Download the universal ZIP from Releases, extract it, and drag **TZswitch.app** into Applications.
-2. On first launch, choose your two favorite timezones using the empty cards. Search the global catalog, grouped by current UTC offset from lowest to highest. Setup saves preferences and leaves the system timezone unchanged.
-3. Click a timezone card to apply that favorite. To change a favorite later, use **TZswitch → 设置常用时区 1… / 设置常用时区 2…** in the macOS app menu. The green border marks the active timezone; the `>` chevron indicates switching.
+2. On first launch, click the cards numbered 1 and 2 to choose your favorite cities. Search the global catalog, grouped by current UTC offset from lowest to highest. Setup saves preferences and leaves the system timezone unchanged.
+3. Click the card body to apply a favorite; click its right-hand `>` area to change the city. The green border marks the active timezone.
 4. Approve the macOS administrator prompt. The app reads back the system settings before reporting success. Close the window to quit; standard macOS minimize and fullscreen controls are available.
 
-Requires macOS 13 or newer; the universal app includes Apple Silicon and Intel binaries. The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`.
+Requires macOS 13 or newer; the universal app includes Apple Silicon and Intel binaries. The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`. Beijing and 北京时间 resolve to Beijing / Shanghai (`Asia/Shanghai`). Compatibility IDs for the same city with identical full timezone rules appear once, while their old names remain searchable.
 
 The release uses an **ad hoc signature**. It is not Developer ID signed or notarized, so macOS may require approval in **System Settings → Privacy & Security** on first launch. Only approve a download you trust. You can also build from source below.
 

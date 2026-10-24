@@ -50,7 +50,26 @@ check(ZoneCatalog.search("asia/kathmandu", at: winter).contains(Destination(rawV
 check(ZoneCatalog.search("UTC+05:45", at: winter).contains(Destination(rawValue: "Asia/Kathmandu")!), "偏移搜索")
 check(ZoneCatalog.search("UTC-08:00", at: winter).contains(.losAngeles), "负偏移搜索")
 check(ZoneCatalog.search("UTC−08:00", at: winter).contains(.losAngeles), "支持从界面复制的 Unicode 负号")
-check(ZoneCatalog.search("  ", at: winter).count == Destination.allCases.count, "空白查询展示全部时区")
+check(ZoneCatalog.search("  ", at: winter).count == ZoneCatalog.choices.count, "空白查询展示去重后的时区")
+let honolulu = Destination(rawValue: "Pacific/Honolulu")!
+let johnston = Destination(rawValue: "Pacific/Johnston")!
+check(honolulu.isSameLocation(as: johnston), "兼容名称识别为同一个城市")
+check(ZoneCatalog.search("檀香山", at: winter) == [honolulu], "檀香山只出现一次并使用主名称")
+check(ZoneCatalog.search("Pacific/Johnston", at: winter) == [honolulu], "旧 IANA 名称仍可搜索到主条目")
+let shanghai = Destination(rawValue: "Asia/Shanghai")!
+for query in ["北京", "Beijing", "北京时间", "上海", "Shanghai", "Asia/Shanghai"] {
+    check(ZoneCatalog.search(query, at: winter).contains(shanghai), "北京时间搜索：\(query)")
+}
+check(shanghai.city == "北京 / 上海", "北京搜索结果有明确城市名称")
+check(ZoneCatalog.choices.contains(.lusaka), "同规则的不同城市仍保留卢萨卡")
+check(ZoneCatalog.choices.contains(Destination(rawValue: "Africa/Maputo")!), "同规则的不同城市仍保留马普托")
+check(ZoneCatalog.representatives.count == Destination.allCases.count, "所有旧时区名称都保留目录映射")
+check(Set(ZoneCatalog.choices.map(\.catalogID)).count == ZoneCatalog.choices.count, "目录代表项不重复")
+for zone in Destination.allCases {
+    let representative = Destination(rawValue: zone.catalogID)!
+    check(zone.ruleData != nil && zone.ruleData == representative.ruleData && zone.englishCity == representative.englishCity,
+          "合并仅限同城且完整规则相同：\(zone.rawValue)")
+}
 check(ZoneCatalog.search("nothing-matches-this", at: winter).isEmpty, "无匹配搜索")
 let suite = "TZswitch.Tests." + UUID().uuidString
 let defaults = UserDefaults(suiteName: suite)!
@@ -66,6 +85,11 @@ check(FavoriteZones(defaults: defaults).slots == [tokyo, .losAngeles], "重新�
 check(!pair.replace(slot: 1, with: tokyo, defaults: defaults), "拒绝重复常用时区")
 check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝不存在的常用位置")
 check(pair.slots == [tokyo, .losAngeles], "失败的编辑不修改现有选择")
+var aliases = FavoriteZones(defaults: UserDefaults(suiteName: suite + ".aliases")!)
+check(aliases.replace(slot: 0, with: johnston, defaults: defaults), "旧别名可以保存")
+check(!aliases.replace(slot: 1, with: honolulu, defaults: defaults), "常用时区拒绝同一城市的不同别名")
+defaults.set([johnston.rawValue, honolulu.rawValue], forKey: FavoriteZones.key)
+check(FavoriteZones(defaults: defaults).slots == [johnston, nil], "旧偏好中的重复别名引导补全")
 defaults.removeObject(forKey: FavoriteZones.key)
 defaults.set(["Africa/Lusaka", "America/Los_Angeles"], forKey: FavoriteZones.legacyKey)
 var migrated = FavoriteZones(defaults: defaults)
