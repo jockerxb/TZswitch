@@ -11,6 +11,7 @@ import SwiftUI
     @Published var favoritePicker: PickerRequest?
     let authorizationReady: Bool
     private var lastVerified: Destination?
+    private var pendingFavorite: Destination?
     private var timer: Timer?
 
     init() {
@@ -43,7 +44,7 @@ import SwiftUI
         favoritePicker = PickerRequest(slot: slot)
     }
 
-    func saveFavorite(slot: Int, destination: Destination) -> Bool {
+    func chooseFavorite(slot: Int, destination: Destination) -> Bool {
         guard !busy else { return false }
         var updated = favorites
         guard updated.replace(slot: slot, with: destination, defaults: .standard) else {
@@ -53,8 +54,20 @@ import SwiftUI
         }
         favorites = updated
         failed = false
-        message = "已保存常用时区，系统时区未更改。"
+        pendingFavorite = destination
+        busy = true
+        message = "正在准备切换至\(destination.city)…"
+        favoritePicker = nil
         return true
+    }
+
+    func favoritePickerDidDismiss() {
+        // Start authorization only after the picker has fully dismissed. Drain
+        // the request first so closing/reopening a picker cannot replay it.
+        guard let target = pendingFavorite else { return }
+        pendingFavorite = nil
+        busy = false
+        select(target)
     }
 
     func select(_ target: Destination) {
@@ -181,7 +194,9 @@ struct TimezoneView: View {
         .frame(minWidth: WindowLayout.width, idealWidth: WindowLayout.width,
                minHeight: WindowLayout.minimumHeight, idealHeight: WindowLayout.standardHeight)
         .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
-        .sheet(item: $model.favoritePicker) { request in ZonePicker(model: model, slot: request.slot) }
+        .sheet(item: $model.favoritePicker, onDismiss: model.favoritePickerDidDismiss) { request in
+            ZonePicker(model: model, slot: request.slot)
+        }
     }
 
     @ViewBuilder private func favoriteRow(_ slot: Int) -> some View {
@@ -276,7 +291,7 @@ struct ZonePicker: View {
                 Button { dismiss() } label: { Label("关闭", systemImage: "xmark") }
                     .keyboardShortcut(.cancelAction).accessibilityLabel("关闭时区选择")
             }
-            Text("选一个城市即可保存，不会立即切换系统时区。")
+            Text("选择城市后将请求 macOS 管理员授权，确认即可切换。")
                 .font(.system(size: 12)).foregroundColor(.secondary)
             TextField("搜索时区/城市，例如：utc9、北京", text: $search)
                 .textFieldStyle(.roundedBorder).accessibilityLabel("搜索全球时区")
@@ -339,8 +354,9 @@ struct ZonePicker: View {
                             let selected = model.favorites.slots[slot]?.isSameLocation(as: zone) == true
                             let usedByOther = model.favorites.slots[1 - slot]?.isSameLocation(as: zone) == true
                             Button {
-                                if model.saveFavorite(slot: slot, destination: zone) { dismiss() }
-                                else { error = "此时区已在另一个常用时区中" }
+                                if !model.chooseFavorite(slot: slot, destination: zone) {
+                                    error = "此时区已在另一个常用时区中"
+                                }
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
