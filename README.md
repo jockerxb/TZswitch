@@ -19,6 +19,16 @@ Requires macOS 13 or newer; the universal app includes Apple Silicon and Intel b
 
 The release uses an **ad hoc signature**. It is not Developer ID signed or notarized, so macOS may require approval in **System Settings → Privacy & Security** on first launch. Only approve a download you trust. You can also build from source below.
 
+### If macOS says Apple cannot verify TZswitch
+
+After confirming that the package came from [this repository's Releases](https://github.com/jockerxb/TZswitch/releases/latest):
+
+1. Click **Done** in the blocked-app dialog.
+2. Open **System Settings → Privacy & Security**, then scroll down to the notice about TZswitch.
+3. Click **Open Anyway**, authenticate as prompted, then click **Open**.
+
+macOS remembers this exception for the app. See [Apple's official instructions](https://support.apple.com/102445).
+
 ## Behavior
 
 - One or two customizable, distinct favorite timezones. New installs start with empty slots; choosing one city completes setup. A single favorite stays usable after reopening, and existing choices are preserved.
@@ -26,7 +36,7 @@ The release uses an **ad hoc signature**. It is not Developer ID signed or notar
 - A manual switch disables automatic timezone selection to keep macOS from switching back based on location. Network time synchronization is left alone.
 - Launching, dismissing the picker without choosing, and quitting do **not** change the system timezone. Choosing a city or clicking a card requests authorization to switch. Quitting keeps the last applied system setting; reopening reads the actual current setting.
 - No menu bar status item and no background service. Closing the window quits the app. Complete or cancel an active authorization before quitting.
-- No telemetry, account, network requests, or external runtime dependencies.
+- No telemetry, account, or external runtime dependencies. Timezone operations make no network requests. The GitHub link at the top right opens the project in your default browser only when clicked, for source code, updates, or issue reporting.
 
 ## Build and test
 
@@ -53,3 +63,5 @@ GitHub Actions builds, tests, and packages pushes and pull requests. A `v*` tag 
 ## Contribute
 
 Open an issue with your macOS version and a reproducible example, or submit a pull request. Run `./package.sh` before proposing a release. Please avoid adding passwords, personal preferences, signing credentials, or local build outputs to the repository.
+
+If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome—it bookmarks the project and supports its continued improvement.

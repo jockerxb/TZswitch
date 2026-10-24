@@ -32,6 +32,17 @@ struct TimezoneView: View {
                         Text("常用时区，随手切换").font(.system(size: 12)).foregroundColor(.secondary)
                     }
                     Spacer()
+                    Link(destination: URL(string: "https://github.com/jockerxb/TZswitch")!) {
+                        HStack(spacing: 4) {
+                            Text("GitHub")
+                            Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .medium))
+                        }
+                        .font(.system(size: 11)).padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).foregroundColor(.secondary)
+                    .accessibilityLabel("打开 TZswitch GitHub 项目")
+                    .help("在浏览器中查看源码、下载更新或反馈问题")
                 }
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 6) {

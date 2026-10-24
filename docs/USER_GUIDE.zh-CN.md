@@ -12,7 +12,17 @@ TZswitch 用于修改 Mac 的**系统时区**。设置一个常用城市即可�
 2. 解压，将 **TZswitch.app** 拖入“应用程序”。使用 App 不需要安装 Xcode 或运行源码。
 3. 从“应用程序”或 Spotlight 搜索 TZswitch 并打开。
 
-当前安装包使用 ad hoc 签名，尚未经过 Developer ID 签名与 Apple 公证。如果首次打开受到 macOS 限制，请先确认来源，再按 [Apple 官方说明](https://support.apple.com/zh-cn/102445)，在“系统设置 → 隐私与安全性”中处理该 App 的打开提示。
+### 首次打开提示“Apple 无法验证 TZswitch”
+
+当前安装包使用 ad hoc 签名，尚未经过 Developer ID 签名与 Apple 公证，因此下载后可能出现“未打开 TZswitch，Apple 无法验证……”的提示。
+
+确认安装包来自[本仓库 Releases](https://github.com/jockerxb/TZswitch/releases/latest) 后，按以下步骤打开：
+
+1. 在拦截弹窗中点击 **“完成”**。
+2. 打开 **系统设置 → 隐私与安全性**，向下找到 TZswitch 被阻止的提示。
+3. 点击 **“仍要打开”**，按系统提示授权，再点击 **“打开”**。
+
+系统会记住对该 App 的允许，之后可以正常启动。操作依据见 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。
 
 ## 2. 首次设置
 
@@ -56,6 +66,7 @@ TZswitch 用于修改 Mac 的**系统时区**。设置一个常用城市即可�
 | “添加常用城市（可选）” | 添加另一个常用城市 |
 | 绿色边框 | 表示系统当前正在使用该城市的时区 |
 | 顶部“系统当前时区”卡片 | 显示系统实际使用的城市、UTC 偏移、时间和日期 |
+| 标题右侧 GitHub | 在默认浏览器打开项目首页，查看源码、下载更新或反馈问题 |
 
 若系统使用的时区不在常用城市中，顶部仍显示系统真实状态，常用城市卡片不会误标为当前时区。
 
@@ -86,3 +97,5 @@ UTC 搜索按当前日期的实际偏移匹配。洛杉矶在夏令时期间为 
 App 不常驻菜单栏，也没有后台服务。需要时从“应用程序”或 Spotlight 打开即可。
 
 遇到问题时，可在[项目 Issues](https://github.com/jockerxb/TZswitch/issues)提供 macOS 版本、TZswitch 版本、所选城市和操作步骤。
+
+如果 TZswitch 对你有帮助，欢迎在[项目首页](https://github.com/jockerxb/TZswitch)点一个 Star 收藏。
