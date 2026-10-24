@@ -9,7 +9,7 @@ A small macOS app for switching the **system timezone**. Choose any timezone ava
 ## Use
 
 1. Download the universal ZIP from Releases, extract it, and drag **TZswitch.app** into Applications.
-2. On first launch, click the cards numbered 1 and 2 to choose your favorite cities. Search the global catalog, grouped by current UTC offset from lowest to highest; use the right-hand UTC index to jump between groups. Offset searches accept `utc9`, `utc-8`, and `utc5:30`. Setup saves preferences and leaves the system timezone unchanged. Click Close or press Esc to return.
+2. On first launch, click the cards numbered 1 and 2 to choose your favorite cities. Search the global catalog, grouped by current UTC offset from lowest to highest; the current group header stays pinned while scrolling. Use the right-hand UTC index to jump between groups. Counts distinguish current UTC-offset groups from deduplicated city entries. Offset searches accept `utc9`, `utc-8`, and `utc5:30`. Setup saves preferences and leaves the system timezone unchanged. Click Close or press Esc to return.
 3. Click the card body to apply a favorite; click its right-hand `>` area to change the city. The green border marks the active timezone.
 4. Approve the macOS administrator prompt. The app reads back the system settings before reporting success. Close the window to quit; standard macOS minimize and fullscreen controls are available.
 

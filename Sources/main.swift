@@ -242,6 +242,7 @@ struct TimezoneView: View {
 final class PickerCatalog: ObservableObject {
     private let referenceDate: Date
     @Published private(set) var groups: [ZoneCatalog.OffsetGroup]
+    var summary: String { "\(groups.count) 个时区 · \(groups.reduce(0) { $0 + $1.zones.count }) 个城市" }
     init() {
         let date = Date()
         referenceDate = date
@@ -250,12 +251,20 @@ final class PickerCatalog: ObservableObject {
     func search(_ query: String) { groups = ZoneCatalog.groups(query, at: referenceDate) }
 }
 
+private struct OffsetPositions: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
 struct ZonePicker: View {
     @ObservedObject var model: AppModel
     let slot: Int
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var error: String?
+    @State private var visibleOffset: Int?
     // Stable data and date while choosing; the live clock cannot reorder rows.
     @StateObject private var catalog = PickerCatalog()
 
@@ -272,7 +281,7 @@ struct ZonePicker: View {
             TextField("搜索时区/城市，例如：utc9、北京", text: $search)
                 .textFieldStyle(.roundedBorder).accessibilityLabel("搜索全球时区")
             HStack {
-                Text("\(catalog.groups.reduce(0) { $0 + $1.zones.count }) 个时区").font(.system(size: 11)).foregroundColor(.secondary)
+                Text(catalog.summary).font(.system(size: 11)).foregroundColor(.secondary)
                 Spacer()
                 if let error { Text(error).font(.system(size: 11)).foregroundColor(.red) }
             }
@@ -303,7 +312,20 @@ struct ZonePicker: View {
             }
         }
         .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)
-        .onChange(of: search) { query in catalog.search(query) }
+        .onChange(of: search) { query in
+            visibleOffset = nil
+            catalog.search(query)
+        }
+    }
+    private var currentGroup: ZoneCatalog.OffsetGroup? {
+        catalog.groups.first { $0.id == visibleOffset } ?? catalog.groups.first
+    }
+    private func groupHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundColor(teal)
+            .padding(.horizontal, 12).padding(.top, 16).padding(.bottom, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
     }
     private var catalogList: some View {
         // This small catalog uses measured stacks so scrollTo has exact group
@@ -312,10 +334,7 @@ struct ZonePicker: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(catalog.groups) { group in
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(group.title)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundColor(teal)
-                            .padding(.horizontal, 12).padding(.top, 16).padding(.bottom, 8)
-                            .accessibilityAddTraits(.isHeader)
+                        groupHeader(group.title).accessibilityHidden(currentGroup?.id == group.id)
                         ForEach(group.zones) { zone in
                             let selected = model.favorites.slots[slot]?.isSameLocation(as: zone) == true
                             let usedByOther = model.favorites.slots[1 - slot]?.isSameLocation(as: zone) == true
@@ -338,12 +357,29 @@ struct ZonePicker: View {
                             }.buttonStyle(.plain).accessibilityLabel("选择\(zone.city)，\(zone.rawValue)")
                             Divider().padding(.horizontal, 8)
                         }
-                    }.id("offset-\(group.id)")
+                    }
+                    .background(GeometryReader { geometry in
+                        Color.clear.preference(key: OffsetPositions.self,
+                            value: [group.id: geometry.frame(in: .named("catalogScroll")).minY])
+                    })
+                    .id("offset-\(group.id)")
                 }
             }.padding(.horizontal, 6).padding(.bottom, 12)
         }
+        .coordinateSpace(name: "catalogScroll")
+        .onPreferenceChange(OffsetPositions.self) { positions in
+            let offset = positions.filter { $0.value <= 1 }.max { $0.value < $1.value }?.key
+            if visibleOffset != offset { visibleOffset = offset }
+        }
         .id(search)
-        .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(Color.white)
+        .overlay(alignment: .topLeading) {
+            if let currentGroup {
+                groupHeader(currentGroup.title).background(Color.white)
+                    .padding(.horizontal, 6).allowsHitTesting(false)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay {
             if catalog.groups.isEmpty { Text("未找到结果，试试 utc9、utc-8 或北京。").foregroundColor(.secondary).font(.system(size: 12)) }
         }
