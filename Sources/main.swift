@@ -128,13 +128,8 @@ struct TimezoneView: View {
                     }
                     Text(model.snapshot.destination?.city ?? model.snapshot.identifier)
                         .font(.system(size: 15, weight: .medium))
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(model.snapshot.identifier).font(.system(size: 10, design: .monospaced))
-                            .lineLimit(1).truncationMode(.middle)
-                        Spacer(minLength: 12)
-                        Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
-                            .font(.system(size: 11, design: .monospaced)).fixedSize()
-                    }.foregroundColor(.secondary)
+                    Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
+                        .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                 }.padding(20).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 19))
 
                 VStack(spacing: 10) {
