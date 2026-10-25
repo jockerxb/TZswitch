@@ -59,6 +59,10 @@ import Combine
         picker = .favorite(slot)
     }
 
+    func isAddingFavorite(_ slot: Int) -> Bool {
+        !favorites.needsSetup && favorites.slots.indices.contains(slot) && favorites.slots[slot] == nil
+    }
+
     @discardableResult func removeFavorite(_ slot: Int) -> Bool {
         guard !busy, let updated = favorites.removing(slot: slot),
               let removed = favorites.slots[slot] else { return false }
@@ -100,13 +104,21 @@ import Combine
     }
 
     func chooseFavorite(slot: Int, destination: Destination) -> Bool {
-        guard !busy else { return false }
+        guard !busy, case .favorite(let requestedSlot) = picker, requestedSlot == slot else { return false }
         guard let updated = favorites.replacing(slot: slot, with: destination) else {
             failed = true
             message = "常用时区请选择不同的城市。"
             return false
         }
         failed = false
+        // Adding another favorite manages the list only. First-time setup and
+        // replacing an existing city keep the explicit switch flow below.
+        if isAddingFavorite(slot) {
+            commitFavorite(updated)
+            message = "已添加\(destination.city)，点击卡片即可切换。"
+            picker = nil
+            return true
+        }
         pendingFavorite = (destination, updated)
         busy = true
         message = "正在准备切换至\(destination.city)…"

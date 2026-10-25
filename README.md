@@ -20,7 +20,7 @@ For example: use Los Angeles time for macOS and Beijing time in the menu bar.
 
 ### Features
 
-- **Favorite timezone switching:** Save up to 3 cities and click to switch the system timezone. One city is enough to start.
+- **Favorite timezone switching:** Save up to 3 cities and click to switch the system timezone. One city is enough to start; adding more cities only saves them.
 - **A separate backup clock:** Choose a city and see its weekday and HH:mm in the menu bar. It stays visible after closing the main window and can be stopped independently without changing the system timezone.
 
 [Download the latest release](https://github.com/jockerxb/TZswitch/releases/latest) · [Installation and user guide (中文)](docs/USER_GUIDE.zh-CN.md)
@@ -97,7 +97,7 @@ If TZswitch helps you, please give it a [Star ⭐](https://github.com/jockerxb/T
 
 ### 基础功能
 
-- **常用时区切换**：保存最多 3 个常用城市，点击即可切换系统时区。设置 1 个就能使用。
+- **常用时区切换**：保存最多 3 个常用城市，点击即可切换系统时区。设置 1 个就能使用，添加更多城市只保存、不切换。
 - **备用时间显示**：自选城市，在菜单栏显示「星期 + 时分」。关闭主窗口后继续显示，可单独退出，不影响系统时区。
 
 [下载最新版](https://github.com/jockerxb/TZswitch/releases/latest) · [安装与使用指南](docs/USER_GUIDE.zh-CN.md)

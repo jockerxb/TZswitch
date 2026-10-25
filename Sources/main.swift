@@ -395,7 +395,10 @@ struct ZonePicker: View {
 
     private var pickerExplanation: String {
         switch request {
-        case .favorite: return "选择城市后将请求 macOS 管理员授权，确认即可切换。"
+        case .favorite(let slot):
+            return model.isAddingFavorite(slot)
+                ? "仅添加常用城市，不切换系统时区。添加后点击卡片即可切换。"
+                : "选择城市后将请求 macOS 管理员授权，确认即可切换。"
         case .backup: return "仅用于显示备用时间，不修改系统时区，无需管理员授权。"
         }
     }

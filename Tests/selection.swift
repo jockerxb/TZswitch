@@ -99,14 +99,47 @@ private final class StubSystem: @unchecked Sendable {
         let single = AppModel(defaults: optionalDefaults, snapshotReader: { optionalSystem.read() },
             authorizer: { optionalSystem.run($0) }, compiler: { _ in true })
         single.editFavorite(1)
-        _ = single.chooseFavorite(slot: 1, destination: target)
+        single.picker = nil
         single.pickerDidDismiss()
+        check(single.favorites.slots == [.lusaka, nil, nil] && optionalSystem.count == 0,
+              "关闭添加面板不保存城市、不请求授权")
+        single.editFavorite(1)
+        check(single.isAddingFavorite(1) && single.chooseFavorite(slot: 1, destination: target),
+              "第二个城市作为常用项添加")
+        check(!single.busy && single.picker == nil && optionalSystem.count == 0
+              && single.snapshot.identifier == original.identifier && single.snapshot.automatic == original.automatic,
+              "添加第二城立即关闭面板，不切换系统、不修改自动时区")
+        single.pickerDidDismiss()
+        single.pickerDidDismiss()
+        check(single.favorites.slots == [.lusaka, target, nil]
+              && FavoriteZones(defaults: optionalDefaults).slots == [.lusaka, target, nil]
+              && optionalSystem.count == 0 && !single.favorites.needsSetup,
+              "第二城保存并可重启读取，面板关闭回调不触发延迟切换")
+        single.select(target)
         let deadline = Date().addingTimeInterval(3)
         while single.busy && Date() < deadline { try? await Task.sleep(nanoseconds: 1_000_000) }
-        check(!single.busy && !single.favorites.needsSetup && single.favorites.slots == [.lusaka, nil, nil]
-              && !FavoriteZones(defaults: optionalDefaults).needsSetup,
-              "取消添加第二个城市后仍保持单城市可用状态")
+        check(optionalSystem.count == 1 && single.snapshot.identifier == original.identifier
+              && FavoriteZones(defaults: optionalDefaults).slots == [.lusaka, target, nil],
+              "点击新卡片才授权；取消切换仍保留新增城市与原系统时区")
         optionalDefaults.removePersistentDomain(forName: optionalSuite)
+
+        let automaticSuite = suitePrefix + ".automatic"
+        let automaticDefaults = UserDefaults(suiteName: automaticSuite)!
+        automaticDefaults.set(old, forKey: FavoriteZones.key)
+        let automatic = SystemSnapshot(identifier: original.identifier, automatic: true)
+        let automaticSystem = StubSystem(initial: automatic, result: CommandResult(status: 1, output: "must not execute"))
+        let automaticModel = AppModel(defaults: automaticDefaults, snapshotReader: { automaticSystem.read() },
+            authorizer: { automaticSystem.run($0) }, compiler: { _ in false })
+        automaticModel.editFavorite(2)
+        check(automaticModel.chooseFavorite(slot: 2, destination: target), "授权组件不可用时仍可添加常用城市")
+        automaticModel.pickerDidDismiss()
+        automaticModel.refresh()
+        check(!automaticModel.busy && !automaticModel.failed && automaticSystem.count == 0
+              && automaticModel.snapshot.automatic == true && automaticModel.snapshot.identifier == original.identifier
+              && FavoriteZones(defaults: automaticDefaults).slots == [.lusaka, .losAngeles, target],
+              "仅添加城市不依赖授权组件，也不关闭系统自动时区")
+        check(!automaticModel.chooseFavorite(slot: 0, destination: target), "没有对应选择面板时拒绝过期选城回调")
+        automaticDefaults.removePersistentDomain(forName: automaticSuite)
         let suite = suitePrefix + ".active"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.set(["Asia/Tokyo", "America/Los_Angeles"], forKey: FavoriteZones.key)
@@ -133,17 +166,25 @@ private final class StubSystem: @unchecked Sendable {
         thirdDefaults.set(old, forKey: FavoriteZones.previousKey)
         let thirdSystem = StubSystem(initial: original,
             result: CommandResult(status: 0, output: "VERIFIED:America/New_York"), after: applied)
+        let existingBackup = BackupClockSettings(enabled: true, destination: .losAngeles)
+        existingBackup.persist(defaults: thirdDefaults)
         let third = AppModel(defaults: thirdDefaults, snapshotReader: { thirdSystem.read() },
             authorizer: { thirdSystem.run($0) }, compiler: { _ in true })
+        let backupBefore = third.backupClock
         third.editFavorite(2)
         check(third.chooseFavorite(slot: 2, destination: target), "第三个城市可从同一选择流程添加")
-        check(third.favorites.slots == [.lusaka, .losAngeles, nil], "第三个城市授权前不提交")
         third.pickerDidDismiss()
+        check(!third.busy && thirdSystem.count == 0 && third.favorites.slots == [.lusaka, .losAngeles, target]
+              && third.snapshot.identifier == original.identifier && third.backupClock == backupBefore
+              && BackupClockSettings(defaults: thirdDefaults) == existingBackup,
+              "第三城仅加入列表，原两城、当前系统时区和备用设置均保留")
+        check(FavoriteZones(defaults: thirdDefaults).slots == [.lusaka, .losAngeles, target], "第三个城市持久化可被重启读取")
+        third.select(target)
         let thirdDeadline = Date().addingTimeInterval(3)
         while third.busy && Date() < thirdDeadline { try? await Task.sleep(nanoseconds: 1_000_000) }
-        check(!third.busy && thirdSystem.count == 1 && third.favorites.slots == [.lusaka, .losAngeles, target],
-              "第三个城市授权成功后提交且保留原两城")
-        check(FavoriteZones(defaults: thirdDefaults).slots == [.lusaka, .losAngeles, target], "第三个城市持久化可被重启读取")
+        check(!third.busy && thirdSystem.count == 1 && third.snapshot.identifier == target.rawValue
+              && FavoriteZones(defaults: thirdDefaults).slots == [.lusaka, .losAngeles, target],
+              "点击新增第三城卡片后正常授权切换，不重复修改常用列表")
         thirdDefaults.removePersistentDomain(forName: thirdSuite)
 
         let clockSuite = suitePrefix + ".clock"
