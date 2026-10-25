@@ -10,11 +10,28 @@ A small macOS app for **switching the system timezone** and **keeping a separate
 
 ### When to use TZswitch
 
-- Manually match the system timezone to a VPN region when a work setup or an app requires it, then keep your home/local time visible separately.
-- Travel or work across regions: switch the system to the destination while keeping track of time at home.
-- Keep up to three frequently used cities for quick switching; the backup clock is independent and only shows the weekday and hour/minute.
+**Use one timezone for the system, while keeping local time easy to see.** When a work setup or an app requires a timezone matching a VPN region, switching macOS can make the usual local clock inconvenient to read. TZswitch combines system-timezone switching with an independent menu-bar clock so you do not need to keep switching back just to check the time.
+
+| Scenario | How TZswitch helps |
+| --- | --- |
+| An app or work setup needs the system timezone to match a VPN region | Save the region's city as a favorite and switch manually after connecting the VPN |
+| You still need local time after switching | Choose your local city for the backup clock; the menu bar keeps its weekday and HH:mm visible |
+| Travel or work across regions | Switch among saved cities and keep a home or colleague's timezone visible separately |
+
+**Example:** You normally use Beijing / Shanghai time, but a VPN-related workflow needs Los Angeles time. Select Los Angeles as a favorite and approve the system switch. Then enable the backup clock and manually choose Beijing / Shanghai. macOS uses Los Angeles time, while the menu bar shows your local weekday and time. Leaving the main interface keeps both; choosing **“退出北京 / 上海时间”** stops only the backup clock.
 
 TZswitch does not detect or control a VPN. It changes the system timezone, not the IP address or physical location; changing the timezone alone does not guarantee any other app's behavior.
+
+### Features
+
+| Feature | What it does |
+| --- | --- |
+| Favorite timezone switching | Save up to 3 cities, starting with just one; click a card to request administrator authorization and switch the system timezone |
+| Global city and timezone search | Search Chinese or English city names, IANA IDs, or UTC offsets such as `utc9`; jump through UTC groups with the side index |
+| Independent backup clock | Off by default; manually choose a city when enabling it, then see only weekday and HH:mm in the menu bar, without changing the system timezone or requesting administrator authorization |
+| Favorite management | Add cities as needed, use `>` to change a city, or delete from the edit panel / card context menu; at least one favorite is kept |
+| Settings that stay in effect | Applied system timezones remain after leaving the app; an enabled backup clock stays visible after closing or quitting the main interface and can be stopped independently |
+| Menu-bar positioning | Hold Command (⌘) and drag the backup time to the desired position |
 
 ### Requirements and permissions
 
@@ -106,11 +123,28 @@ If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome
 
 ### 应用场景
 
-- **配合 VPN 使用**：部分工作环境或软件使用流程需要系统时区与 VPN 所在地区一致，可手动切换到对应时区，同时用备用时钟保留查看本地时间的方式。
-- **出差、旅行**：系统使用目的地时间，菜单栏显示家乡的星期和时间，方便安排联系。
-- **跨地区工作**：按需添加最多 3 个常用城市，点击切换；备用时区独立保存，不跟着系统时区改变。
+**系统按需要切换时区，本地时间仍然随时可见。** 一些软件或工作环境在配合 VPN 使用时，需要把系统时区手动切换到 VPN 对应的地区。切换后，Mac 的系统时钟也随之变化，查看原来的本地时间就不方便了。TZswitch 将“常用时区切换”和“备用时区显示”放在一起，让你不必为了看本地时间而反复切回系统时区。
+
+| 场景 | 使用方式 |
+| --- | --- |
+| 软件或工作环境需要时区与 VPN 地区对应 | 把对应地区的城市加入常用时区，连接 VPN 后手动切换系统时区 |
+| 切换系统时区后，仍需要查看当地／本地时间 | 开启备用时区显示并选择本地城市，在菜单栏查看星期和时分 |
+| 出差、旅行或跨地区协作 | 在常用城市间切换，同时保留家乡或同事所在城市的时间 |
+
+**例如：** 你平时使用北京／上海时间，某个配合 VPN 的工作流程需要洛杉矶时区。把洛杉矶加入常用时区，点击并完成系统授权；再打开备用显示，手动选择北京／上海。此时系统使用洛杉矶时间，顶部菜单栏仍可查看北京／上海的星期和时间。退出主界面后两者都保留；选择 **“退出北京 / 上海时间”** 只停止备用时钟。
 
 TZswitch 不检测或控制 VPN，也不改变 IP 地址或实际位置；仅切换时区不能保证其他软件的行为。
+
+### 基础功能
+
+| 功能 | 说明 |
+| --- | --- |
+| 常用时区切换 | 最多保存 3 个常用城市，一个即可开始；点击卡片并完成管理员授权后切换系统时区 |
+| 全球城市与时区搜索 | 支持中文／英文城市名、IANA 标识、`utc9` 等偏移搜索，以及右侧 UTC 快速导航 |
+| 独立备用时钟 | 默认关闭，开启时必须手动选城；菜单栏只显示星期和时分，不修改系统时区、不需要管理员授权 |
+| 常用城市管理 | 按需添加，点击 `>` 更换；支持面板删除及右键删除，至少保留一个常用城市 |
+| 退出后继续保留 | 已生效的系统时区始终保留；备用开启时退出主界面仍显示，备用时间可单独退出 |
+| 菜单栏位置调整 | 按住 Command（⌘）拖动备用时间，放到便于查看的位置 |
 
 ### 安装要求与权限
 
