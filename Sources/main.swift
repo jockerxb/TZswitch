@@ -81,12 +81,16 @@ struct TimezoneView: View {
                     } else {
                         ForEach(model.favorites.configuredSlots, id: \.self) { slot in favoriteRow(slot) }
                         if let slot = model.favorites.nextAvailableSlot {
-                            Button { model.editFavorite(slot) } label: {
-                                Label("添加常用时区", systemImage: "plus")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
-                                    .contentShape(Rectangle())
-                            }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
+                            HStack(spacing: 0) {
+                                Button { model.editFavorite(slot) } label: {
+                                    Label("添加常用时区", systemImage: "plus")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .padding(.vertical, 6).padding(.trailing, 10)
+                                        .contentShape(Rectangle())
+                                }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
+                                    .fixedSize()
+                                Spacer(minLength: 0)
+                            }
                         }
                     }
                 }
