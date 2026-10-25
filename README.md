@@ -10,6 +10,8 @@
 
 **Switch your system timezone. Keep local time in sight.**
 
+<p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch app: Los Angeles system timezone and a Beijing backup clock"></p>
+
 ### When to use TZswitch
 
 Switch the system timezone for a VPN-related workflow or a trip, while keeping home or local time easy to see.
@@ -82,6 +84,8 @@ Open an issue with your macOS version and a reproducible example, or submit a pu
 ## 中文说明
 
 **系统时区随手切，本地时间随时看。**
+
+<p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch 主界面：洛杉矶系统时区与北京备用时钟"></p>
 
 ### 应用场景
 
