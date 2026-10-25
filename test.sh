@@ -3,11 +3,22 @@ set -eu
 cd "${0:A:h}"
 BUILD="$PWD/.build"
 mkdir -p "$BUILD"
+# This integration check needs a logged-in graphical macOS session.
+if [[ "${1:-}" == --native-status-item ]]; then
+    /usr/bin/xcrun swiftc -parse-as-library -module-cache-path "$BUILD/test-module-cache" \
+        Sources/StatusItemPosition.swift Tests/status-position-native.swift \
+        -o "$BUILD/status-position-native-tests" -framework AppKit
+    "$BUILD/status-position-native-tests"
+    exit
+fi
 /usr/bin/xcrun swiftc -module-cache-path "$BUILD/test-module-cache" Sources/TimezoneCore.swift Tests/main.swift -o "$BUILD/core-tests"
 "$BUILD/core-tests" "$BUILD"
 /usr/bin/xcrun swiftc -parse-as-library -module-cache-path "$BUILD/test-module-cache" \
     Sources/TimezoneCore.swift Sources/AppModel.swift Tests/selection.swift -o "$BUILD/selection-tests" -framework AppKit
 "$BUILD/selection-tests"
+/usr/bin/xcrun swiftc -parse-as-library -module-cache-path "$BUILD/test-module-cache" \
+    Sources/StatusItemPosition.swift Tests/status-position.swift -o "$BUILD/status-position-tests"
+"$BUILD/status-position-tests"
 /usr/bin/python3 Tests/transaction.py "$BUILD"
 if /usr/bin/osacompile -o "$BUILD/standard-additions-probe.scpt" -e 'do shell script "true"' 2>"$BUILD/osa-probe.log"; then
     for city in LUN LAX KTM CHT UTC; do

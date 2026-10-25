@@ -422,6 +422,7 @@ struct ZonePicker: View {
     private var window: NSWindow!
     private var clockObserver: AnyCancellable?
     private var statusItem: NSStatusItem?
+    private let statusItemPosition = StatusItemPosition(autosaveName: "TZswitchBackupClock")
     private var menuClock: BackupClockSettings?
     private var fittedContentHeight = WindowLayout.initialHeight
     private var measuredContentHeight: CGFloat = 0
@@ -494,18 +495,22 @@ struct ZonePicker: View {
 
     private func updateStatusClock(_ settings: BackupClockSettings, at date: Date) {
         guard let title = settings.title(at: date), let zone = settings.destination else {
-            // Keep the native item while the main interface is running so
-            // toggling the clock does not discard a user-dragged position.
-            if statusItem?.isVisible == true { statusItem?.isVisible = false }
+            if let statusItem, statusItem.isVisible {
+                statusItemPosition.hide { statusItem.isVisible = false }
+            }
             menuClock = nil
             return
         }
         if statusItem == nil {
+            statusItemPosition.restore()
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             statusItem?.autosaveName = "TZswitchBackupClock"
             statusItem?.button?.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         }
-        if statusItem?.isVisible == false { statusItem?.isVisible = true }
+        if statusItem?.isVisible == false {
+            statusItemPosition.restore()
+            statusItem?.isVisible = true
+        }
         if statusItem?.button?.title != title { statusItem?.button?.title = title }
         statusItem?.button?.toolTip = "TZswitch · \(zone.city) · \(zone.offset(at: date))\n按住 ⌘ 拖动时间可调整菜单栏位置"
         statusItem?.button?.setAccessibilityLabel("备用时间 \(zone.city) \(title)")
@@ -588,6 +593,10 @@ struct ZonePicker: View {
     // The timezone is stored by macOS. Launching and quitting only read it;
     // only explicit select actions above are allowed to run a switching script.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !model.backupClock.enabled }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        statusItemPosition.remember()
+    }
 }
 
 @main struct TimezoneSwitchApp {
