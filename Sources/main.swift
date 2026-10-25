@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CoreServices
 import SwiftUI
 
 
@@ -9,14 +10,18 @@ private let teal = Color(red: 0.08, green: 0.45, blue: 0.43)
 private enum WindowLayout {
     static let width: CGFloat = 460
     static let minimumHeight: CGFloat = 460
-    static let standardHeight: CGFloat = 480
-    static let setupHeight: CGFloat = 504
-    static let revision = 3
+    static let initialHeight: CGFloat = 620
+    static let revision = 4
 }
 
+private struct ContentHeight: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
 
 struct TimezoneView: View {
     @ObservedObject var model: AppModel
+    var onContentHeightChange: (CGFloat) -> Void = { _ in }
 
     var body: some View {
         ScrollView {
@@ -29,7 +34,7 @@ struct TimezoneView: View {
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TZswitch").font(.system(size: 22, weight: .semibold))
-                        Text("常用时区，随手切换").font(.system(size: 12)).foregroundColor(.secondary)
+                        Text("随手切换，留住本地时间").font(.system(size: 12)).foregroundColor(.secondary)
                     }
                     Spacer()
                     Link(destination: URL(string: "https://github.com/jockerxb/TZswitch")!) {
@@ -71,8 +76,21 @@ struct TimezoneView: View {
                             .font(.system(size: 12)).foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    ForEach(0..<2, id: \.self) { slot in favoriteRow(slot) }
+                    if model.favorites.needsSetup {
+                        favoriteRow(0)
+                    } else {
+                        ForEach(model.favorites.configuredSlots, id: \.self) { slot in favoriteRow(slot) }
+                        if let slot = model.favorites.nextAvailableSlot {
+                            Button { model.editFavorite(slot) } label: {
+                                Label("添加常用时区", systemImage: "plus")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
+                                    .contentShape(Rectangle())
+                            }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
+                        }
+                    }
                 }
+                backupClockSection
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: model.failed ? "exclamationmark.circle" : "checkmark.shield")
                     if model.failed || model.busy {
@@ -82,22 +100,56 @@ struct TimezoneView: View {
                         let status = model.message ?? (model.snapshot.automatic == true
                             ? "切换需管理员授权并关闭自动时区"
                             : "切换需管理员授权")
-                        Text(status + " · 关闭即退出，时区保留")
+                        let closing = model.backupClock.enabled ? "关闭窗口保留备用时间" : "关闭即退出，时区保留"
+                        Text(status + " · " + closing)
                             .lineLimit(1).minimumScaleFactor(0.85)
-                            .help(status + " · 关闭窗口即退出，系统时区会继续保留")
+                            .help(status + " · " + closing + "；系统时区继续保留")
                     }
                 }.font(.system(size: 10)).foregroundColor(model.failed ? .red : .secondary)
 
             }
             .padding(.horizontal, 26).padding(.top, 26).padding(.bottom, 16)
             .frame(maxWidth: 650).frame(maxWidth: .infinity)
+            .background(GeometryReader { geometry in
+                Color.clear.preference(key: ContentHeight.self, value: geometry.size.height)
+            })
         }
+        .onPreferenceChange(ContentHeight.self, perform: onContentHeightChange)
         .frame(minWidth: WindowLayout.width, idealWidth: WindowLayout.width,
-               minHeight: WindowLayout.minimumHeight, idealHeight: WindowLayout.standardHeight)
+               minHeight: WindowLayout.minimumHeight, idealHeight: WindowLayout.initialHeight)
         .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
-        .sheet(item: $model.favoritePicker, onDismiss: model.favoritePickerDidDismiss) { request in
-            ZonePicker(model: model, slot: request.slot)
+        .sheet(item: $model.picker, onDismiss: model.pickerDidDismiss) { request in
+            ZonePicker(model: model, request: request)
         }
+    }
+
+    private var backupClockSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("备用时区显示").font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Toggle("备用时区显示", isOn: Binding(get: { model.backupClock.enabled }, set: model.setBackupDisplay))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .accessibilityLabel("显示备用时区时间").disabled(model.busy)
+            }
+            if model.backupClock.enabled, let zone = model.backupClock.destination {
+                Button { model.editBackup() } label: {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(zone.city).font(.system(size: 13, weight: .medium))
+                            Text(zone.offset(at: model.now)).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
+                        }
+                        Spacer(minLength: 4)
+                        Text(model.backupClock.title(at: model.now) ?? "").font(.system(size: 15)).monospacedDigit()
+                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .medium))
+                    }.contentShape(Rectangle())
+                }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
+                    .accessibilityLabel("更换备用城市：\(zone.city)")
+            }
+            Text(model.backupClock.enabled ? "关闭主窗口后，顶部菜单栏继续显示备用时间。" : "开启后选择城市，在顶部菜单栏查看星期和时间。")
+                .font(.system(size: 11)).foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }.padding(14).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     @ViewBuilder private func favoriteRow(_ slot: Int) -> some View {
@@ -130,7 +182,7 @@ struct TimezoneView: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? teal.opacity(0.5) : Color.black.opacity(0.04)))
             .disabled(model.busy)
         } else {
-            let prompt = model.favorites.needsSetup ? "点击设置常用城市\(slot + 1)" : "添加常用城市（可选）"
+            let prompt = "点击设置常用城市"
             Button { model.editFavorite(slot) } label: {
                 HStack(spacing: 10) {
                     Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
@@ -178,7 +230,7 @@ private struct OffsetPositions: PreferenceKey {
 
 struct ZonePicker: View {
     @ObservedObject var model: AppModel
-    let slot: Int
+    let request: PickerRequest
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var error: String?
@@ -189,12 +241,12 @@ struct ZonePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("设置常用时区 \(slot + 1)").font(.system(size: 18, weight: .semibold))
+                Text(request.title).font(.system(size: 18, weight: .semibold))
                 Spacer()
                 Button { dismiss() } label: { Label("关闭", systemImage: "xmark") }
                     .keyboardShortcut(.cancelAction).accessibilityLabel("关闭时区选择")
             }
-            Text("选择城市后将请求 macOS 管理员授权，确认即可切换。")
+            Text(pickerExplanation)
                 .font(.system(size: 12)).foregroundColor(.secondary)
             TextField("搜索时区/城市，例如：utc9、北京", text: $search)
                 .textFieldStyle(.roundedBorder).accessibilityLabel("搜索全球时区")
@@ -256,11 +308,16 @@ struct ZonePicker: View {
                     VStack(alignment: .leading, spacing: 0) {
                         groupHeader(group.title).accessibilityHidden(currentGroup?.id == group.id)
                         ForEach(group.zones) { zone in
-                            let selected = model.favorites.slots[slot]?.isSameLocation(as: zone) == true
-                            let usedByOther = model.favorites.slots[1 - slot]?.isSameLocation(as: zone) == true
+                            let selected = selectedDestination?.isSameLocation(as: zone) == true
+                            let usedByOther = isUsedByOtherFavorite(zone)
                             Button {
-                                if !model.chooseFavorite(slot: slot, destination: zone) {
-                                    error = "此时区已在另一个常用时区中"
+                                switch request {
+                                case .favorite(let slot):
+                                    if !model.chooseFavorite(slot: slot, destination: zone) {
+                                        error = "此城市已在常用时区中"
+                                    }
+                                case .backup:
+                                    model.chooseBackup(zone)
                                 }
                             } label: {
                                 HStack {
@@ -269,7 +326,7 @@ struct ZonePicker: View {
                                         Text(zone.rawValue).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
                                     }
                                     Spacer()
-                                    if usedByOther { Text("另一常用时区").font(.system(size: 10)).foregroundColor(.secondary) }
+                                    if usedByOther { Text("已添加").font(.system(size: 10)).foregroundColor(.secondary) }
                                     Text(group.title).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                                 }.padding(8).contentShape(Rectangle())
                                     .background(selected ? teal.opacity(0.05) : Color.clear)
@@ -312,36 +369,65 @@ struct ZonePicker: View {
         }
     }
 
+    private var pickerExplanation: String {
+        switch request {
+        case .favorite: return "选择城市后将请求 macOS 管理员授权，确认即可切换。"
+        case .backup: return "仅用于显示备用时间，不修改系统时区，无需管理员授权。"
+        }
+    }
+
+    private var selectedDestination: Destination? {
+        switch request {
+        case .favorite(let slot): return model.favorites.slots[slot]
+        case .backup: return model.backupClock.destination
+        }
+    }
+
+    private func isUsedByOtherFavorite(_ zone: Destination) -> Bool {
+        guard case .favorite(let slot) = request else { return false }
+        return model.favorites.contains(zone, excluding: slot)
+    }
+
 }
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let model = AppModel()
     private var window: NSWindow!
-    private var setupLayoutObserver: AnyCancellable?
+    private var clockObserver: AnyCancellable?
+    private var statusItem: NSStatusItem?
+    private var menuClock: BackupClockSettings?
+    private var fittedContentHeight = WindowLayout.initialHeight
+    private var measuredContentHeight: CGFloat = 0
+    private var windowReady = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let host = NSHostingController(rootView: TimezoneView(model: model))
+        let host = NSHostingController(rootView: TimezoneView(model: model, onContentHeightChange: { [weak self] height in
+            self?.fitWindow(to: height)
+        }))
         window = NSWindow(contentViewController: host)
         window.delegate = self
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
         window.titleVisibility = .hidden
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        let initialSize = NSSize(width: WindowLayout.width, height: model.favorites.needsSetup ? WindowLayout.setupHeight : WindowLayout.standardHeight)
+        let initialSize = NSSize(width: WindowLayout.width, height: WindowLayout.initialHeight)
         window.contentMinSize = NSSize(width: WindowLayout.width, height: WindowLayout.minimumHeight)
         window.setContentSize(initialSize)
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.isReleasedWhenClosed = false
         window.center()
         window.setFrameAutosaveName("TimezoneSwitchWindow")
-        // Migrate saved geometry when the content layout changes.
-        // Migrate geometry once, then preserve future user resizing as usual.
+        // Remember the last measured default separately from a user-resized
+        // window, so optional rows can fit without overriding manual sizing.
+        let savedFit = UserDefaults.standard.double(forKey: "windowFittedHeight.v1")
+        fittedContentHeight = savedFit > 0 ? savedFit : WindowLayout.initialHeight
         let layoutRevisionKey = "windowLayoutRevision"
         if UserDefaults.standard.integer(forKey: layoutRevisionKey) < WindowLayout.revision {
             window.setContentSize(initialSize)
+            fittedContentHeight = WindowLayout.initialHeight
             UserDefaults.standard.set(WindowLayout.revision, forKey: layoutRevisionKey)
         }
-        setupLayoutObserver = model.$favorites.map(\.needsSetup).removeDuplicates().dropFirst()
-            .sink { [weak self] needsSetup in self?.updateSetupHeight(needsSetup) }
+        clockObserver = model.$backupClock.combineLatest(model.$now)
+            .sink { [weak self] settings, date in self?.updateStatusClock(settings, at: date) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         let menu = NSMenu()
@@ -353,21 +439,86 @@ struct ZonePicker: View {
         appItem.submenu = appMenu
         menu.addItem(appItem)
         NSApp.mainMenu = menu
+        windowReady = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.fitWindow(to: self.measuredContentHeight)
+        }
     }
 
-    private func updateSetupHeight(_ needsSetup: Bool) {
-        let previousHeight = needsSetup ? WindowLayout.standardHeight : WindowLayout.setupHeight
+    private func fitWindow(to measuredHeight: CGFloat) {
+        measuredContentHeight = measuredHeight
+        guard windowReady, let window, measuredHeight > 0 else { return }
+        let titleHeight = window.frame.height - (window.contentView?.frame.height ?? 0)
+        let available = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 900
+        let target = min(max(WindowLayout.minimumHeight, ceil(measuredHeight)), available - titleHeight)
+        let previous = fittedContentHeight
+        fittedContentHeight = target
+        UserDefaults.standard.set(Double(target), forKey: "windowFittedHeight.v1")
         guard !window.isZoomed, !window.styleMask.contains(.fullScreen),
-              let height = window.contentView?.frame.height, abs(height - previousHeight) < 1 else { return }
-        let target = needsSetup ? WindowLayout.setupHeight : WindowLayout.standardHeight
-        let difference = target - height
+              let current = window.contentView?.frame.height,
+              abs(current - previous) < 1, abs(target - current) >= 1 else { return }
         var frame = window.frame
-        frame.size.height += difference
-        frame.origin.y -= difference // Keep the top edge still when the setup hint disappears.
+        frame.size.height += target - current
+        frame.origin.y -= target - current
+        if let screen = window.screen { frame.origin.y = max(frame.origin.y, screen.visibleFrame.minY) }
         window.setFrame(frame, display: true)
     }
 
+    private func updateStatusClock(_ settings: BackupClockSettings, at date: Date) {
+        guard let title = settings.title(at: date), let zone = settings.destination else {
+            // Keep the native item while the main interface is running so
+            // toggling the clock does not discard a user-dragged position.
+            if statusItem?.isVisible == true { statusItem?.isVisible = false }
+            menuClock = nil
+            return
+        }
+        if statusItem == nil {
+            statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            statusItem?.autosaveName = "TZswitchBackupClock"
+            statusItem?.button?.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        }
+        if statusItem?.isVisible == false { statusItem?.isVisible = true }
+        if statusItem?.button?.title != title { statusItem?.button?.title = title }
+        statusItem?.button?.toolTip = "TZswitch · \(zone.city) · \(zone.offset(at: date))\n按住 ⌘ 拖动时间可调整菜单栏位置"
+        statusItem?.button?.setAccessibilityLabel("备用时间 \(zone.city) \(title)")
+        // Rebuilding an open menu on every clock tick would interrupt clicks.
+        if menuClock != settings {
+            let menu = NSMenu()
+            menu.addItem(withTitle: "备用时区：\(zone.city)", action: nil, keyEquivalent: "")
+            menu.addItem(.separator())
+            let show = menu.addItem(withTitle: "打开 TZswitch", action: #selector(showWindow), keyEquivalent: "")
+            show.target = self
+            let edit = menu.addItem(withTitle: "更换备用时区…", action: #selector(editBackupClock), keyEquivalent: "")
+            edit.target = self
+            menu.addItem(.separator())
+            let stop = menu.addItem(withTitle: "退出\(zone.city)时间", action: #selector(stopBackupClock), keyEquivalent: "")
+            stop.target = self
+            statusItem?.menu = menu
+            menuClock = settings
+        }
+    }
+
+    @objc private func editBackupClock() {
+        showWindow()
+        model.editBackup()
+    }
+
+    @objc private func stopBackupClock() {
+        guard !model.busy else { showWindow(); return }
+        model.setBackupDisplay(false)
+        // No visible main window and no clock means there is nothing to keep
+        // running. This only stops the process; it never restores a timezone.
+        if !window.isVisible { NSApp.terminate(nil) }
+    }
+
+    private func keepBackupClockAndHideWindow() {
+        window.orderOut(nil)
+        NSApp.setActivationPolicy(.accessory)
+    }
+
     @objc private func showWindow() {
+        NSApp.setActivationPolicy(.regular)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -384,15 +535,32 @@ struct ZonePicker: View {
         return true
     }
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool { canQuit() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard canQuit() else { return false }
+        if model.backupClock.enabled {
+            keepBackupClockAndHideWindow()
+            return false
+        }
+        return true
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        canQuit() ? .terminateNow : .terminateCancel
+        // A logout, restart, or shutdown must be allowed to terminate the app.
+        // Normal Quit / Command-Q keeps an explicitly enabled clock alive.
+        let systemQuit = NSAppleEventManager.shared().currentAppleEvent?
+            .paramDescriptor(forKeyword: AEKeyword(kAEQuitReason)) != nil
+        if systemQuit { return .terminateNow }
+        guard canQuit() else { return .terminateCancel }
+        if model.backupClock.enabled {
+            keepBackupClockAndHideWindow()
+            return .terminateCancel
+        }
+        return .terminateNow
     }
 
     // The timezone is stored by macOS. Launching and quitting only read it;
     // only explicit select actions above are allowed to run a switching script.
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !model.backupClock.enabled }
 }
 
 @main struct TimezoneSwitchApp {

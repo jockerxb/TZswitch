@@ -8,7 +8,8 @@ import Combine
     @Published var message: String?
     @Published var failed = false
     @Published var favorites: FavoriteZones
-    @Published var favoritePicker: PickerRequest?
+    @Published private(set) var backupClock: BackupClockSettings
+    @Published var picker: PickerRequest?
     let authorizationReady: Bool
     private var lastVerified: Destination?
     private var pendingFavorite: (destination: Destination, favorites: FavoriteZones)?
@@ -31,6 +32,7 @@ import Combine
         self.compiler = compiler
         snapshot = snapshotReader()
         favorites = FavoriteZones(defaults: defaults)
+        backupClock = BackupClockSettings(defaults: defaults)
         authorizationReady = compiler(SystemCommands.switchScript(to: .lusaka))
         if !authorizationReady {
             failed = true
@@ -53,26 +55,56 @@ import Combine
     }
 
     func editFavorite(_ slot: Int) {
-        guard !busy, favoritePicker == nil, favorites.slots.indices.contains(slot) else { return }
-        favoritePicker = PickerRequest(slot: slot)
+        guard !busy, picker == nil, favorites.slots.indices.contains(slot) else { return }
+        picker = .favorite(slot)
+    }
+
+    func editBackup() {
+        guard !busy, picker == nil else { return }
+        picker = .backup(enableAfterSelection: false)
+    }
+
+    func setBackupDisplay(_ enabled: Bool) {
+        guard !busy else { return }
+        if enabled {
+            guard picker == nil else { return }
+            // Enabling always requires a deliberate city choice, even if a
+            // previous display city was saved. Cancel leaves the switch off.
+            picker = .backup(enableAfterSelection: true)
+        } else {
+            setBackupClock(enabled: false, destination: backupClock.destination)
+        }
+    }
+
+    private func setBackupClock(enabled: Bool, destination: Destination?) {
+        guard !busy else { return }
+        let settings = BackupClockSettings(enabled: enabled, destination: destination)
+        settings.persist(defaults: defaults)
+        backupClock = settings
+    }
+
+    func chooseBackup(_ destination: Destination) {
+        guard !busy, case .backup(let enableAfterSelection) = picker else { return }
+        setBackupClock(enabled: enableAfterSelection || backupClock.enabled, destination: destination)
+        picker = nil
     }
 
     func chooseFavorite(slot: Int, destination: Destination) -> Bool {
         guard !busy else { return false }
         guard let updated = favorites.replacing(slot: slot, with: destination) else {
             failed = true
-            message = "两个常用时区请选择不同的时区。"
+            message = "常用时区请选择不同的城市。"
             return false
         }
         failed = false
         pendingFavorite = (destination, updated)
         busy = true
         message = "正在准备切换至\(destination.city)…"
-        favoritePicker = nil
+        picker = nil
         return true
     }
 
-    func favoritePickerDidDismiss() {
+    func pickerDidDismiss() {
         // Start authorization only after the picker has fully dismissed. Drain
         // the request first so closing/reopening a picker cannot replay it.
         guard let target = pendingFavorite else { return }
@@ -124,7 +156,20 @@ import Combine
     }
 }
 
-struct PickerRequest: Identifiable {
-    let slot: Int
-    var id: Int { slot }
+enum PickerRequest: Identifiable {
+    case favorite(Int)
+    case backup(enableAfterSelection: Bool)
+
+    var id: String {
+        switch self {
+        case .favorite(let slot): return "favorite-\(slot)"
+        case .backup: return "backup"
+        }
+    }
+    var title: String {
+        switch self {
+        case .favorite(let slot): return "设置常用时区 \(slot + 1)"
+        case .backup: return "设置备用时区"
+        }
+    }
 }

@@ -6,7 +6,15 @@
 
 ## English
 
-A small macOS app for switching the **system timezone**. Choose any timezone available on your Mac, and keep one or two favorites. One city is enough to start.
+A small macOS app for **switching the system timezone** and **keeping a separate local-time clock** in the menu bar. Save up to three favorite cities; one is enough to start.
+
+### When to use TZswitch
+
+- Manually match the system timezone to a VPN region when a work setup or an app requires it, then keep your home/local time visible separately.
+- Travel or work across regions: switch the system to the destination while keeping track of time at home.
+- Keep up to three frequently used cities for quick switching; the backup clock is independent and only shows the weekday and hour/minute.
+
+TZswitch does not detect or control a VPN. It changes the system timezone, not the IP address or physical location; changing the timezone alone does not guarantee any other app's behavior.
 
 ### Requirements and permissions
 
@@ -27,9 +35,11 @@ Enter administrator credentials only in the macOS system prompt; the app does no
 See the **[App user guide (中文)](docs/USER_GUIDE.zh-CN.md)** for installation, first-run setup, UTC search examples, navigation, authorization, and troubleshooting.
 
 1. Download the universal ZIP from Releases, extract it, and drag **TZswitch.app** into Applications.
-2. On first launch, choose a favorite city in either empty slot to get started. The second city is optional. Search the global catalog, grouped by current UTC offset from lowest to highest; the current group header stays pinned while scrolling. Use the right-hand UTC index to jump between groups. Counts distinguish current UTC-offset groups from deduplicated city entries. Offset searches accept `utc9`, `utc-8`, and `utc5:30`. Choosing a city immediately requests macOS administrator authorization to switch. The new favorite is saved only after verified success; cancellation or failure preserves the previous favorite and system timezone. Click Close or press Esc to return without choosing.
-3. Approve the macOS administrator prompt triggered by choosing the city. The app verifies and applies it immediately; no second card click is needed.
-4. For later changes, click the card body to apply a favorite or its right-hand `>` area to change the city. The green border marks the active timezone. Close the window to quit; the applied system timezone stays in effect.
+2. Click **“点击设置常用城市”** to choose the first city. Choosing a favorite requests macOS administrator authorization immediately; it is saved only after verified success. Cancellation preserves the previous favorite and system timezone.
+3. Click **“添加常用时区”** to add the second or third city when needed. Click a card body to switch, or its right-hand `>` to change that city. The green border marks the active system timezone.
+4. Optionally turn on **“备用时区显示”**, then manually choose a city. Only after selection does the menu bar show a clock such as **“周日 18:22”**. Canceling the picker leaves the switch off. Backup-city selection does not change the system timezone or request administrator authorization.
+5. Hold **Command (⌘)** and drag the menu-bar time to move it, for example to the left of Control Center. Its position is managed by macOS; toggling the display reuses the same status item.
+6. With the backup clock on, closing the window or using Quit / Command-Q hides the main interface while the clock continues. Click the menu-bar time for **“打开 TZswitch”**, **“更换备用时区…”**, or **“退出[city]时间”**. Stopping the clock never changes the system timezone. With the backup clock off, closing the window or quitting exits the app normally.
 
 The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`. Beijing and 北京时间 resolve to Beijing / Shanghai (`Asia/Shanghai`). Compatibility IDs for the same city with identical full timezone rules appear once, while their old names remain searchable.
 
@@ -47,11 +57,11 @@ macOS remembers this exception for the app. See [Apple's official instructions](
 
 ### Behavior
 
-- One or two customizable, distinct favorite timezones. New installs start with empty slots; choosing one city completes setup. A single favorite stays usable after reopening, and existing choices are preserved.
+- Up to three distinct favorite cities. New installs have no preset cities and show one setup entry. The second and third are added manually; existing choices are preserved on upgrade.
 - The timezone catalog and daylight saving rules come from macOS [Foundation TimeZone](https://developer.apple.com/documentation/foundation/timezone). The list follows the system timezone database rather than a bundled city list.
 - A manual switch disables automatic timezone selection to keep macOS from switching back based on location. Network time synchronization is left alone.
 - Launching, dismissing the picker without choosing, and quitting do **not** change the system timezone. Choosing a city or clicking a card requests authorization to switch. Quitting keeps the last applied system setting; reopening reads the actual current setting.
-- No menu bar status item and no background service. Closing the window quits the app. Complete or cancel an active authorization before quitting.
+- The backup clock is off by default and has no preset city. Each time it is turned on, manually select a city; changing system timezones does not change this clock. While enabled, closing or quitting the main interface keeps the clock running in the menu bar. Stopping the clock also exits the process if the main window is hidden. No helper service or automatic login launch is installed; after a restart, open the app again. Complete or cancel an active system authorization before leaving the main interface.
 - No telemetry, account, or external runtime dependencies. Timezone operations make no network requests. The GitHub link at the top right opens the project in your default browser only when clicked, for source code, updates, or issue reporting.
 
 ### Build and test
@@ -88,9 +98,17 @@ If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome
 
 ## 中文说明
 
-一个轻量的 macOS **系统时区切换工具**。支持 Mac 上的全球时区，可保存一到两个常用时区，设置一个即可使用。
+一个轻量的 macOS 工具，提供 **常用时区切换** 和 **备用时区显示**。最多保存 3 个常用城市，设置一个即可使用；切换系统时区后，仍可在菜单栏查看另一个城市的本地时间。
 
 [English](#english) · [App 使用说明](docs/USER_GUIDE.zh-CN.md) · [下载最新版](https://github.com/jockerxb/TZswitch/releases/latest)
+
+### 应用场景
+
+- **配合 VPN 使用**：部分工作环境或软件使用流程需要系统时区与 VPN 所在地区一致，可手动切换到对应时区，同时用备用时钟保留查看本地时间的方式。
+- **出差、旅行**：系统使用目的地时间，菜单栏显示家乡的星期和时间，方便安排联系。
+- **跨地区工作**：按需添加最多 3 个常用城市，点击切换；备用时区独立保存，不跟着系统时区改变。
+
+TZswitch 不检测或控制 VPN，也不改变 IP 地址或实际位置；仅切换时区不能保证其他软件的行为。
 
 ### 安装要求与权限
 
@@ -108,10 +126,12 @@ If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome
 
 ### 使用
 
-1. 下载 Release 中的 universal ZIP，解压后将 **TZswitch.app** 拖进“应用程序”，即可从启动台启动。
-2. 首次打开时，点击任意一个“点击设置常用城市”入口，搜索城市或输入 `utc9`、`utc-8` 等偏移，然后选择城市。设置一个即可使用，第二个可选。
-3. 选中城市后会自动请求 macOS 管理员授权，确认并验证成功后即生效，无需再点卡片。取消授权或失败时保留原城市。
-4. 日常点击卡片主体切换，右侧 `>` 用于更换城市；绿色边框表示当前使用的时区。关闭主窗口即可退出，系统时区继续保留。
+1. 下载 Release 中的 universal ZIP，解压后将 **TZswitch.app** 拖进“应用程序”。
+2. 首次打开时，点击绿色的 **“点击设置常用城市”**，搜索并选择城市。系统授权、验证成功后立即生效并保存；取消授权或失败时保留原城市。
+3. 需要更多常用城市时，点击 **“添加常用时区”**，手动添加第 2、第 3 个。日常点击卡片主体切换，右侧 `>` 更换城市；绿色边框表示系统当前时区。
+4. 如需查看本地或另一城市时间，打开 **“备用时区显示”**，手动选择城市后，菜单栏显示 **“周日 18:22”** 这样的星期和时分。取消选择则保持关闭；此操作不切换系统时区，也不需要管理员授权。
+5. 按住 **Command（⌘）**，再拖动顶部备用时间，可移到“控制中心”图标左侧等位置。位置由 macOS 管理；开关切换时复用同一菜单栏项目。
+6. **备用关闭**：关闭窗口或退出 App 后，仅保留已经生效的系统时区。**备用开启**：关闭窗口或退出主界面（含 Command-Q）后，系统时区与菜单栏备用时钟都保留。点击备用时间可打开主界面、更换备用城市或选择 **“退出××时间”**；停止备用时钟不改变系统时区。
 
 安装、首次设置、搜索示例、UTC 导航、取消授权及常见问题，请查看 **[App 使用说明](docs/USER_GUIDE.zh-CN.md)**。
 
@@ -133,11 +153,11 @@ If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome
 
 ### 时区如何保留
 
-- 新用户没有默认城市，首次打开时设置一个常用城市即可结束引导；可按需再添加第二个不同的城市。只保存一个城市时，重启后也可继续使用。旧版已保存的选择会保留，偏好只保存在本机。
+- 新用户没有默认城市，首次只显示一个设置入口；设置一个即可使用，第 2、第 3 个城市需要用户主动添加。常用城市不能重复，升级保留原有选择，偏好只保存在本机。
 - 全球时区及夏令时规则来自 macOS 系统数据库，随系统更新。
 - 手动切换时会关闭“自动设置时区”，避免系统根据位置改回；不影响自动校准网络时间。
 - 启动、关闭选择面板和退出不会修改系统时区；选择新城市或点击卡片会请求授权后切换。退出后保留已设置的时区，再次打开时读取系统实际状态。
-- 无顶部菜单栏常驻图标，无后台服务。关闭窗口即退出；授权过程中需先完成或取消授权。
+- 备用时钟默认关闭、不预设城市。每次开启都要手动选择城市，关闭时不需要选择。开启后退出主界面仍继续显示；从菜单选择“退出××时间”后停止显示，若主窗口已隐藏则同时结束进程。没有独立后台服务，也不会自动开机启动；重启电脑后需要重新打开 App。系统授权期间需先完成或取消授权，再退出主界面。
 - 无账号、遥测或第三方运行依赖；时区功能不发起网络请求。标题右侧的 GitHub 入口仅在点击后通过默认浏览器打开项目首页，可查看源码、下载更新或反馈问题。
 
 ### 从源码构建

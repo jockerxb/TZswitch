@@ -92,42 +92,64 @@ check(ZoneCatalog.search("nothing-matches-this", at: winter).isEmpty, "无匹配
 let suite = "TZswitch.Tests." + UUID().uuidString
 let defaults = UserDefaults(suiteName: suite)!
 var pair = FavoriteZones(defaults: defaults)
-check(pair.slots == [nil, nil] && pair.needsSetup, "新用户没有预设城市，进入设置引导")
+check(pair.slots == [nil, nil, nil] && pair.needsSetup, "新用户无预设城市且最多三个常用位")
 let tokyo = Destination(rawValue: "Asia/Tokyo")!
+check(pair.nextAvailableSlot == 0 && pair.configuredSlots.isEmpty, "新用户仅提供首次添加入口")
 check(pair.replace(slot: 0, with: tokyo, defaults: defaults), "保存第一个常用时区")
 check(pair.configuredCount == 1 && !pair.needsSetup, "设置一个城市后即完成首次设置")
-check(FavoriteZones(defaults: defaults).slots == [tokyo, nil] && !FavoriteZones(defaults: defaults).needsSetup,
-      "单城市偏好重启后仍可使用，无需补第二个")
-check(pair.replace(slot: 1, with: .losAngeles, defaults: defaults), "保存第二个常用时区")
-check(!pair.needsSetup && pair.configuredCount == 2, "第二个城市为可选项")
-check(FavoriteZones(defaults: defaults).slots == [tokyo, .losAngeles], "重新读取已保存常用时区")
-check(!pair.replace(slot: 1, with: tokyo, defaults: defaults), "拒绝重复常用时区")
-check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝不存在的常用位置")
-check(pair.slots == [tokyo, .losAngeles], "失败的编辑不修改现有选择")
-defaults.set(["", tokyo.rawValue], forKey: FavoriteZones.key)
-check(!FavoriteZones(defaults: defaults).needsSetup && FavoriteZones(defaults: defaults).configuredCount == 1,
-      "只设置编号 2 也完成首次设置")
-var aliases = FavoriteZones(defaults: UserDefaults(suiteName: suite + ".aliases")!)
-check(aliases.replace(slot: 0, with: johnston, defaults: defaults), "旧别名可以保存")
-check(!aliases.replace(slot: 1, with: honolulu, defaults: defaults), "常用时区拒绝同一城市的不同别名")
-defaults.set([johnston.rawValue, honolulu.rawValue], forKey: FavoriteZones.key)
-check(FavoriteZones(defaults: defaults).slots == [johnston, nil], "旧偏好中的重复别名引导补全")
-defaults.removeObject(forKey: FavoriteZones.key)
-defaults.set(["Africa/Lusaka", "America/Los_Angeles"], forKey: FavoriteZones.legacyKey)
-var migrated = FavoriteZones(defaults: defaults)
-check(migrated.slots == [.lusaka, .losAngeles] && !migrated.needsSetup, "保留旧版用户已保存的两个城市")
-check(migrated.replace(slot: 1, with: tokyo, defaults: defaults), "升级后继续编辑")
-check(FavoriteZones(defaults: defaults).slots == [.lusaka, tokyo], "新偏好优先于旧版数据")
+check(FavoriteZones(defaults: defaults).slots == [tokyo, nil, nil], "重启后保留单城市与两个可选空位")
+check(pair.replace(slot: 1, with: .losAngeles, defaults: defaults), "手动添加第二个常用时区")
+check(pair.replace(slot: 2, with: .lusaka, defaults: defaults), "手动添加第三个常用时区")
+check(pair.nextAvailableSlot == nil && pair.configuredSlots == [0, 1, 2], "三城市后不再提供添加入口")
+check(FavoriteZones(defaults: defaults).slots == [tokyo, .losAngeles, .lusaka], "三个常用时区均可重启读取")
+check(!pair.replace(slot: 0, with: .lusaka, defaults: defaults), "跨第三位重复城市不能覆盖第一位")
+check(!pair.replace(slot: 2, with: tokyo, defaults: defaults), "第三位不能重复第一位城市")
+check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝第四个常用位置")
+check(pair.slots == [tokyo, .losAngeles, .lusaka], "失败编辑不修改现有选择")
+check(pair.replace(slot: 2, with: shanghai, defaults: defaults), "第三位可以独立更换城市")
+let aliasSuite = suite + ".aliases"
+let aliasDefaults = UserDefaults(suiteName: aliasSuite)!
+var aliases = FavoriteZones(defaults: aliasDefaults)
+check(aliases.replace(slot: 0, with: johnston, defaults: aliasDefaults), "旧别名可以保存")
+check(!aliases.replace(slot: 2, with: honolulu, defaults: aliasDefaults), "第三位拒绝同一城市的兼容别名")
+aliasDefaults.removePersistentDomain(forName: aliasSuite)
+for source in [FavoriteZones.previousKey, FavoriteZones.legacyKey] {
+    defaults.removeObject(forKey: FavoriteZones.key)
+    defaults.removeObject(forKey: FavoriteZones.previousKey)
+    defaults.removeObject(forKey: FavoriteZones.legacyKey)
+    defaults.set(["Africa/Lusaka", "America/Los_Angeles"], forKey: source)
+    var migrated = FavoriteZones(defaults: defaults)
+    check(migrated.slots == [.lusaka, .losAngeles, nil] && !migrated.needsSetup, "升级保留旧版两城市并留下可选第三位：\(source)")
+    check(migrated.replace(slot: 2, with: tokyo, defaults: defaults), "旧用户可以添加第三城市")
+    check(FavoriteZones(defaults: defaults).slots == [.lusaka, .losAngeles, tokyo], "新版偏好优先于旧版数据")
+}
 for (saved, expected) in [
-    (["Africa/Lusaka"], [nil, nil]),
-    (["Africa/Lusaka", "Africa/Lusaka"], [Destination.lusaka, nil]),
-    (["Bogus/Zone", "Asia/Tokyo"], [nil, tokyo]),
-    (["", "Asia/Tokyo"], [nil, tokyo]),
-    (["Asia/Tokyo", "Asia/Shanghai", "Etc/UTC"], [nil, nil])
+    (["Africa/Lusaka"], [Destination.lusaka, nil, nil]),
+    (["Africa/Lusaka", "Africa/Lusaka"], [Destination.lusaka, nil, nil]),
+    (["Bogus/Zone", "Asia/Tokyo"], [nil, tokyo, nil]),
+    (["", "Asia/Tokyo"], [nil, tokyo, nil]),
+    (["Asia/Tokyo", "Asia/Shanghai", "Etc/UTC"], [tokyo, shanghai, Destination(rawValue: "Etc/UTC")!]),
+    (["Asia/Tokyo", "Bogus/Zone", "Asia/Shanghai", "Africa/Lusaka"], [tokyo, nil, shanghai])
 ] as [([String], [Destination?])] {
     defaults.set(saved, forKey: FavoriteZones.key)
-    check(FavoriteZones(defaults: defaults).slots == expected, "损坏偏好保留有效项并引导补全")
+    check(FavoriteZones(defaults: defaults).slots == expected, "偏好读取保留有效项、去重并遵守容量")
 }
+check(BackupClockSettings(defaults: defaults) == BackupClockSettings(enabled: false, destination: nil), "新用户备用时区默认关闭且没有预设城市")
+let backup = BackupClockSettings(enabled: true, destination: shanghai)
+backup.persist(defaults: defaults)
+check(BackupClockSettings(defaults: defaults) == backup, "备用时区与显示开关可持久化")
+let midnight = iso.date(from: "2026-01-17T17:30:00Z")!
+check(backup.title(at: midnight) == "周日 01:30", "备用时间按所选城市计算星期与24小时分钟，正确跨日")
+let laxClock = BackupClockSettings(enabled: true, destination: .losAngeles)
+check(laxClock.title(at: before) == "周日 01:59" && laxClock.title(at: after) == "周日 03:00", "备用时钟自动遵循夏令时跳变")
+let fractionalClock = BackupClockSettings(enabled: true, destination: Destination(rawValue: "Asia/Kathmandu")!)
+check(fractionalClock.title(at: winter) == "周四 17:45", "备用时钟支持45分钟时区")
+let disabled = BackupClockSettings(enabled: false, destination: shanghai)
+disabled.persist(defaults: defaults)
+check(disabled.title(at: midnight) == nil && BackupClockSettings(defaults: defaults).destination == shanghai, "关闭显示仍保留备用城市")
+defaults.set(["enabled": true, "timezone": "Bogus/Zone"], forKey: BackupClockSettings.key)
+check(!BackupClockSettings(defaults: defaults).enabled, "非法备用城市不能产生空白常驻项")
+check(!BackupClockSettings(enabled: true, destination: nil).enabled, "无城市不能开启备用显示")
 for date in [winter, summer] {
     let sorted = ZoneCatalog.search("", at: date)
     let offsets = sorted.map { $0.zone.secondsFromGMT(for: date) }

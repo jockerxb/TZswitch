@@ -156,27 +156,38 @@ enum ZoneCatalog {
     }
 }
 
-/// Up to two favorites; one saved city completes setup. Never modifies macOS.
+/// Up to three favorites; optional slots are only shown when added by the user.
 struct FavoriteZones: Equatable {
-    static let key = "favoriteTimezones.v3"
+    static let key = "favoriteTimezones.v4"
+    static let previousKey = "favoriteTimezones.v3"
     static let legacyKey = "quickTimezones.v2"
+    static let capacity = 3
     private(set) var slots: [Destination?]
     var configuredCount: Int { slots.compactMap { $0 }.count }
     var needsSetup: Bool { configuredCount == 0 }
+    var configuredSlots: [Int] { slots.indices.filter { slots[$0] != nil } }
+    var nextAvailableSlot: Int? { slots.firstIndex(of: nil) }
 
     init(defaults: UserDefaults) {
-        // Preserve existing users' choices; new installs start with two empty slots.
-        let saved = defaults.stringArray(forKey: Self.key) ?? defaults.stringArray(forKey: Self.legacyKey)
-        guard let saved, saved.count == 2 else { slots = [nil, nil]; return }
-        slots = saved.map { Destination(rawValue: $0) }
-        if let first = slots[0], let second = slots[1], first.isSameLocation(as: second) { slots[1] = nil }
+        let saved = defaults.stringArray(forKey: Self.key)
+            ?? defaults.stringArray(forKey: Self.previousKey)
+            ?? defaults.stringArray(forKey: Self.legacyKey) ?? []
+        slots = Array(repeating: nil, count: Self.capacity)
+        for (index, value) in saved.prefix(Self.capacity).enumerated() {
+            guard let zone = Destination(rawValue: value),
+                  !slots.compactMap({ $0 }).contains(where: { $0.isSameLocation(as: zone) }) else { continue }
+            slots[index] = zone
+        }
     }
     /// Stage a change without mutating either the visible pair or saved defaults.
     func replacing(slot: Int, with zone: Destination) -> FavoriteZones? {
-        guard slots.indices.contains(slot), slots[1 - slot]?.isSameLocation(as: zone) != true else { return nil }
+        guard slots.indices.contains(slot), !contains(zone, excluding: slot) else { return nil }
         var updated = self
         updated.slots[slot] = zone
         return updated
+    }
+    func contains(_ zone: Destination, excluding slot: Int) -> Bool {
+        slots.indices.contains { $0 != slot && slots[$0]?.isSameLocation(as: zone) == true }
     }
     func persist(defaults: UserDefaults) {
         defaults.set(slots.map { $0?.rawValue ?? "" }, forKey: Self.key)
@@ -187,6 +198,35 @@ struct FavoriteZones: Equatable {
         self = updated
         persist(defaults: defaults)
         return true
+    }
+}
+
+/// A display-only timezone, independent of macOS and the switchable favorites.
+struct BackupClockSettings: Equatable {
+    static let key = "backupClock.v1"
+    let enabled: Bool
+    let destination: Destination?
+
+    init(enabled: Bool, destination: Destination?) {
+        self.destination = destination
+        self.enabled = enabled && destination != nil
+    }
+    init(defaults: UserDefaults) {
+        let saved = defaults.dictionary(forKey: Self.key)
+        let zone = (saved?["timezone"] as? String).flatMap(Destination.init(rawValue:))
+        self.init(enabled: saved?["enabled"] as? Bool ?? false, destination: zone)
+    }
+    func persist(defaults: UserDefaults) {
+        var saved: [String: Any] = ["enabled": enabled]
+        if let destination { saved["timezone"] = destination.rawValue }
+        defaults.set(saved, forKey: Self.key)
+    }
+    func title(at date: Date) -> String? {
+        guard enabled, let destination else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = destination.zone
+        let weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+        return weekdays[calendar.component(.weekday, from: date) - 1] + " " + destination.time(at: date)
     }
 }
 
