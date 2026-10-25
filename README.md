@@ -9,7 +9,7 @@
 ## English
 
 **Switch your system time zone. Keep local time in sight.**
-<img width="920" height="1158" alt="image" src="https://github.com/user-attachments/assets/acba5297-166c-4235-8525-d543e6a4894a" />
+<img width="920" height="1158" alt="image" src="https://github.com/user-attachments/assets/cc1b12f3-6ab9-4c3b-9b8c-93a328c3a879" />
 
 
 ### When to use TZswitch
