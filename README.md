@@ -10,7 +10,7 @@
 
 **Switch your system timezone. Keep local time in sight.**
 
-<p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch app: Los Angeles system timezone and a Beijing backup clock"></p>
+<p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch app: Los Angeles system timezone and a Beijing backup timezone"></p>
 
 ### When to use TZswitch
 
@@ -22,14 +22,14 @@ For example: use Los Angeles time for macOS and Beijing time in the menu bar.
 
 - **Favorite timezone switching:** Save up to 3 cities and click to switch the system timezone. One city is enough to start; adding more cities only saves them.
 - **Chinese and English:** Use the language icon next to GitHub; your choice is remembered.
-- **A separate backup clock:** Choose a city and see its weekday and HH:mm in the menu bar. It stays visible after closing the main window and can be stopped independently without changing the system timezone.
+- **Backup timezone display:** Choose a city and see its weekday and HH:mm in the menu bar. It stays visible after closing the main window and can be stopped independently without changing the system timezone.
 
 [Download the latest release](https://github.com/jockerxb/TZswitch/releases/latest) · [Installation and user guide (中文)](docs/USER_GUIDE.zh-CN.md)
 
 ### System requirements
 
 - **macOS 13 or newer**, on Apple Silicon or Intel.
-- No additional software required. Switching the system timezone needs administrator authorization; the backup clock needs no extra permissions.
+- No additional software required. Switching the system timezone needs administrator authorization; the backup timezone display needs no extra permissions.
 
 <details>
 <summary>Build from source and test</summary>

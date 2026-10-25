@@ -6,6 +6,10 @@ import SwiftUI
 
 private let ink = Color(red: 0.07, green: 0.10, blue: 0.17)
 private let teal = Color(red: 0.08, green: 0.45, blue: 0.43)
+private let headerButtonHeight: CGFloat = 30
+// Older supported macOS versions may not include the translate symbol.
+private let languageSymbolName = NSImage(systemSymbolName: "translate", accessibilityDescription: nil) != nil
+    ? "translate" : "character.bubble"
 
 private enum WindowLayout {
     static let width: CGFloat = 460
@@ -49,7 +53,7 @@ struct TimezoneView: View {
                                 Text("GitHub")
                             }
                             .font(.system(size: 13, weight: .semibold))
-                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .padding(.horizontal, 12).frame(height: headerButtonHeight)
                             .background(teal.opacity(0.08), in: Capsule())
                             .contentShape(Capsule())
                             .fixedSize()
@@ -139,11 +143,12 @@ struct TimezoneView: View {
 
     private var languageButton: some View {
         Button { showingLanguages.toggle() } label: {
-            Image(systemName: "character.bubble")
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: 30, height: 30)
-                .background(teal.opacity(0.08), in: Circle())
-                .contentShape(Circle())
+            Image(systemName: languageSymbolName)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 20, height: 16)
+                .padding(.horizontal, 12).frame(height: headerButtonHeight)
+                .background(teal.opacity(0.08), in: Capsule())
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain).foregroundColor(teal)
         .accessibilityLabel(language.text(.changeLanguage))
