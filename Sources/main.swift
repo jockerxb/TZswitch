@@ -34,7 +34,7 @@ struct TimezoneView: View {
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TZswitch").font(.system(size: 22, weight: .semibold))
-                        Text("随手切换，留住本地时间").font(.system(size: 12)).foregroundColor(.secondary)
+                        Text("时区随手切，本地时间随时看").font(.system(size: 12)).foregroundColor(.secondary)
                     }
                     Spacer()
                     Link(destination: URL(string: "https://github.com/jockerxb/TZswitch")!) {

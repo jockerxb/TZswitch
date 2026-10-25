@@ -85,7 +85,7 @@ If TZswitch helps you, please give it a [Star ⭐](https://github.com/jockerxb/T
 
 ## 中文说明
 
-**系统时区随手切，本地时间随时看。**
+**时区随手切，本地时间随时看。**
 
 <p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch 主界面：洛杉矶系统时区与北京备用时钟"></p>
 
