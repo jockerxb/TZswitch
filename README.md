@@ -77,6 +77,8 @@ Open an issue with your macOS version and a reproducible example, or submit a pu
 >
 > After this, the app can open normally. See [Apple's instructions](https://support.apple.com/102445).
 
+If TZswitch helps you, please give it a [Star ⭐](https://github.com/jockerxb/TZswitch) to support its continued improvement.
+
 ---
 
 <a id="chinese"></a>
@@ -151,3 +153,5 @@ GitHub Actions 在 push 和 pull request 时自动构建、测试并打包；推
 > 3. 点击 **“仍要打开”**，按系统提示授权，再点击 **“打开”**。
 >
 > 之后即可正常启动。操作说明见 [Apple 官方指南](https://support.apple.com/zh-cn/102445)。
+
+如果 TZswitch 对你有帮助，欢迎给项目点个 [Star ⭐](https://github.com/jockerxb/TZswitch)，支持我们继续改进。
