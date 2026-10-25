@@ -38,14 +38,18 @@ struct TimezoneView: View {
                     }
                     Spacer()
                     Link(destination: URL(string: "https://github.com/jockerxb/TZswitch")!) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 12, weight: .semibold))
                             Text("GitHub")
-                            Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .medium))
                         }
-                        .font(.system(size: 11)).padding(.vertical, 8)
-                        .contentShape(Rectangle())
+                        .font(.system(size: 13, weight: .semibold))
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(teal.opacity(0.08), in: Capsule())
+                        .contentShape(Capsule())
+                        .fixedSize()
                     }
-                    .buttonStyle(.plain).foregroundColor(.secondary)
+                    .buttonStyle(.plain).foregroundColor(teal)
                     .accessibilityLabel("打开 TZswitch GitHub 项目")
                     .help("在浏览器中查看源码、下载更新或反馈问题")
                 }
