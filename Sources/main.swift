@@ -150,7 +150,9 @@ struct TimezoneView: View {
                 }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
                     .accessibilityLabel("更换备用城市：\(zone.city)")
             }
-            Text(model.backupClock.enabled ? "关闭主窗口后，顶部菜单栏继续显示备用时间。" : "开启后选择城市，在顶部菜单栏查看星期和时间。")
+            Text(model.backupClock.enabled ? "关闭主窗口后，顶部菜单栏继续显示备用时间。"
+                 : model.backupClock.destination.map { "再次开启将显示\($0.city)时间。" }
+                    ?? "开启后选择城市，在顶部菜单栏查看星期和时间。")
                 .font(.system(size: 11)).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }.padding(14).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))

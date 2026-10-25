@@ -82,9 +82,13 @@ import Combine
         guard !busy else { return }
         if enabled {
             guard picker == nil else { return }
-            // Enabling always requires a deliberate city choice, even if a
-            // previous display city was saved. Cancel leaves the switch off.
-            picker = .backup(enableAfterSelection: true)
+            if let destination = backupClock.destination {
+                setBackupClock(enabled: true, destination: destination)
+            } else {
+                // Only first-time setup needs a city choice. Hiding a clock
+                // keeps that choice, so enabling it can resume immediately.
+                picker = .backup(enableAfterSelection: true)
+            }
         } else {
             setBackupClock(enabled: false, destination: backupClock.destination)
         }

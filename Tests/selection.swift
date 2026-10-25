@@ -224,16 +224,33 @@ private final class StubSystem: @unchecked Sendable {
         check(!BackupClockSettings(defaults: clockDefaults).enabled
               && BackupClockSettings(defaults: clockDefaults).destination == shanghai && clockSystem.count == 1,
               "关闭备用显示不丢失城市、不执行额外系统修改")
-        restoredClock.setBackupDisplay(true)
-        check(!restoredClock.backupClock.enabled && restoredClock.picker != nil, "再次开启也先请求用户选择城市")
-        restoredClock.picker = nil
-        restoredClock.pickerDidDismiss()
-        check(!restoredClock.backupClock.enabled && clockSystem.count == 1, "取消再次开启不会恢复旧时钟或修改系统")
-        restoredClock.setBackupDisplay(true)
-        restoredClock.chooseBackup(.losAngeles)
-        restoredClock.pickerDidDismiss()
-        check(restoredClock.backupClock.enabled && restoredClock.backupClock.destination == .losAngeles
-              && clockSystem.count == 1, "再次手动选择后启用新备用城市，无额外系统授权")
+        let reopenedHidden = AppModel(defaults: clockDefaults, snapshotReader: { clockSystem.read() },
+            authorizer: { clockSystem.run($0) }, compiler: { _ in true })
+        check(!reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == shanghai,
+              "关闭备用显示后重启仍记住城市，但保持关闭")
+        reopenedHidden.setBackupDisplay(true)
+        check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == shanghai
+              && reopenedHidden.picker == nil && clockSystem.count == 1
+              && BackupClockSettings(defaults: clockDefaults).enabled,
+              "重启后再次开启立即恢复上次城市，不弹选择面板、不请求授权")
+        reopenedHidden.editBackup()
+        reopenedHidden.picker = nil
+        reopenedHidden.pickerDidDismiss()
+        check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == shanghai
+              && clockSystem.count == 1, "取消箭头更换保留原备用城市和显示开关")
+        reopenedHidden.editBackup()
+        reopenedHidden.chooseBackup(.losAngeles)
+        reopenedHidden.pickerDidDismiss()
+        check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == .losAngeles
+              && clockSystem.count == 1, "通过箭头更换备用城市，无额外系统授权")
+        for _ in 0..<3 {
+            reopenedHidden.setBackupDisplay(false)
+            reopenedHidden.setBackupDisplay(true)
+        }
+        check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == .losAngeles
+              && reopenedHidden.picker == nil && clockSystem.count == 1
+              && BackupClockSettings(defaults: clockDefaults).destination == .losAngeles,
+              "多次开关记住最新备用城市，系统时区不受影响")
         clockDefaults.removePersistentDomain(forName: clockSuite)
         let removalSuite = suitePrefix + ".removal"
         let removalDefaults = UserDefaults(suiteName: removalSuite)!
