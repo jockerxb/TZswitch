@@ -30,7 +30,7 @@ import AppKit
         model.setLanguage(.english)
         check(AppLanguage(defaults: defaults) == .english && model.language == .english,
               "单一语言状态持久化用户选择")
-        check(model.message == "Added New York. Click its card to switch.", "切换语言即时翻译已显示的动态提示")
+        check(model.message == "Added New York to Favorites. Click it to switch.", "切换语言即时翻译已显示的动态提示")
         check(model.snapshot.identifier == original.identifier && model.favorites.slots == [.lusaka, .losAngeles, nil]
               && model.backupClock == backup && defaults.double(forKey: positionKey) == 193,
               "切换语言不改变系统时区、常用城市、备用时钟或位置")

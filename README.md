@@ -8,28 +8,28 @@
 
 ## English
 
-**Switch your system timezone. Keep local time in sight.**
+**Switch your system time zone. Keep local time in sight.**
 
-<p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch app: Los Angeles system timezone and a Beijing backup timezone"></p>
+<p align="center"><img src="docs/images/tzswitch-app.png" width="460" alt="TZswitch app: Los Angeles system time zone and Beijing time in the menu bar"></p>
 
 ### When to use TZswitch
 
-Switch the system timezone for a VPN-related workflow or a trip, while keeping home or local time easy to see.
+Switch the system time zone for a VPN-related workflow or a trip, while keeping home or local time easy to see.
 
 For example: use Los Angeles time for macOS and Beijing time in the menu bar.
 
 ### Features
 
-- **Favorite timezone switching:** Save up to 3 cities and click to switch the system timezone. One city is enough to start; adding more cities only saves them.
+- **Favorite time zones:** Save up to 3 cities. Click a saved city to change your Mac’s time zone. Adding a city doesn’t switch it.
 - **Chinese and English:** Use the language icon next to GitHub; your choice is remembered.
-- **Backup timezone display:** Choose a city and see its weekday and HH:mm in the menu bar. It stays visible after closing the main window and can be stopped independently without changing the system timezone.
+- **Backup time zone:** See another city’s day and time in the menu bar, even after closing the window. Hide it at any time without changing your Mac’s time zone.
 
 [Download the latest release](https://github.com/jockerxb/TZswitch/releases/latest) · [Installation and user guide (中文)](docs/USER_GUIDE.zh-CN.md)
 
 ### System requirements
 
 - **macOS 13 or newer**, on Apple Silicon or Intel.
-- No additional software required. Switching the system timezone needs administrator authorization; the backup timezone display needs no extra permissions.
+- No additional software required. Switching the system time zone needs administrator authorization; the backup time zone display needs no extra permissions.
 
 <details>
 <summary>Build from source and test</summary>
@@ -42,7 +42,7 @@ Install Apple's Xcode Command Line Tools (`xcode-select --install`), then:
 git clone https://github.com/jockerxb/TZswitch.git
 cd TZswitch
 ./build.sh                 # universal app → dist/TZswitch.app
-./test.sh                  # no system timezone modifications
+./test.sh                  # no system time zone modifications
 ./package.sh               # build + test + release ZIP and SHA256SUMS.txt
 ```
 
@@ -59,9 +59,9 @@ Tests cover DST boundaries, fractional offsets, global search and UTC grouping, 
 
 ### Implementation
 
-`Sources/TimezoneCore.swift` owns the validated timezone catalog, preferences, system snapshot, and switching transaction. `Sources/AppModel.swift` owns authorization flow and preference commits after success; `Sources/main.swift` contains the UI and app lifecycle. Only explicit switch actions run the administrator script. IDs must be in the system allowlist and are shell-quoted at the command boundary. Failed transactions attempt to restore the previous timezone and automatic-selection setting.
+`Sources/TimezoneCore.swift` owns the validated time zone catalog, preferences, system snapshot, and switching transaction. `Sources/AppModel.swift` owns authorization flow and preference commits after success; `Sources/main.swift` contains the UI and app lifecycle. Only explicit switch actions run the administrator script. IDs must be in the system allowlist and are shell-quoted at the command boundary. Failed transactions attempt to restore the previous time zone and automatic-selection setting.
 
-UI copy is defined in the exhaustive bilingual `AppText` table. `AppModel.language` persists the selection and drives all surfaces; build checks reject hardcoded UI copy.
+Follow [AGENTS.md](AGENTS.md) when changing features: update and review Chinese and English together. UI copy is defined in the exhaustive bilingual `AppText` table. `AppModel.language` persists the selection and drives all surfaces; build checks reject hardcoded UI copy.
 
 GitHub Actions builds, tests, and packages pushes and pull requests. A `v*` tag publishes a release after those checks pass; the tag must match the version in `Info.plist`.
 
@@ -143,7 +143,7 @@ cd TZswitch
 
 `Sources/TimezoneCore.swift` 负责目录、偏好、系统读取和切换事务；`Sources/AppModel.swift` 负责授权流程及成功后的偏好提交；`Sources/main.swift` 负责界面与生命周期。时区标识只允许系统数据库内的值，执行前再次进行 shell 转义。切换失败时尝试恢复原时区与自动时区设置。
 
-界面文案统一定义在 `AppText` 的中英文配对中，新增条目缺少翻译会编译失败。`AppModel.language` 持久化语言并驱动所有界面；构建检查拦截绕过语言层的界面文案。
+按 [AGENTS.md](AGENTS.md) 同步维护并审校中英文。界面文案统一定义在 `AppText` 的中英文配对中，新增条目缺少翻译会编译失败。`AppModel.language` 持久化语言并驱动所有界面；构建检查拦截绕过语言层的界面文案。
 
 GitHub Actions 在 push 和 pull request 时自动构建、测试并打包；推送 `v*` 标签会在检查通过后发布 Release，标签必须与 `Info.plist` 中的版本一致。
 
