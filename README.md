@@ -8,6 +8,20 @@
 
 A small macOS app for switching the **system timezone**. Choose any timezone available on your Mac, and keep one or two favorites. One city is enough to start.
 
+### Requirements and permissions
+
+| Item | Requirement |
+| --- | --- |
+| macOS | 13.0 or newer |
+| Mac | Apple Silicon (M series) or Intel; one universal download |
+| Additional software | No Xcode, Python, or other runtime installation needed to use the release app |
+| First launch | The current release is not notarized; follow the Open Anyway steps below if macOS blocks it |
+| Switching timezones | macOS administrator authorization; the system prompt may identify `osascript` |
+
+Actual app launch and privileged timezone switching have been verified on **macOS 15.5**. Other macOS versions in the supported range have not each been tested on a physical Mac.
+
+Enter administrator credentials only in the macOS system prompt; the app does not save passwords. A standard account needs available administrator credentials to approve a switch. TZswitch does not require Accessibility, Screen Recording, Full Disk Access, Location Services, camera, or microphone permissions. Favorites are stored locally.
+
 ### Use
 
 See the **[App user guide (中文)](docs/USER_GUIDE.zh-CN.md)** for installation, first-run setup, UTC search examples, navigation, authorization, and troubleshooting.
@@ -17,7 +31,7 @@ See the **[App user guide (中文)](docs/USER_GUIDE.zh-CN.md)** for installation
 3. Approve the macOS administrator prompt triggered by choosing the city. The app verifies and applies it immediately; no second card click is needed.
 4. For later changes, click the card body to apply a favorite or its right-hand `>` area to change the city. The green border marks the active timezone. Close the window to quit; the applied system timezone stays in effect.
 
-Requires macOS 13 or newer; the universal app includes Apple Silicon and Intel binaries. The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`. Beijing and 北京时间 resolve to Beijing / Shanghai (`Asia/Shanghai`). Compatibility IDs for the same city with identical full timezone rules appear once, while their old names remain searchable.
+The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`. Beijing and 北京时间 resolve to Beijing / Shanghai (`Asia/Shanghai`). Compatibility IDs for the same city with identical full timezone rules appear once, while their old names remain searchable.
 
 The release uses an **ad hoc signature**. It is not Developer ID signed or notarized, so macOS may require approval in **System Settings → Privacy & Security** on first launch. Only approve a download you trust. You can also build from source below.
 
@@ -78,6 +92,20 @@ If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome
 
 [English](#english) · [App 使用说明](docs/USER_GUIDE.zh-CN.md) · [下载最新版](https://github.com/jockerxb/TZswitch/releases/latest)
 
+### 安装要求与权限
+
+| 项目 | 要求 |
+| --- | --- |
+| macOS | **13.0 及以上** |
+| Mac 芯片 | Apple Silicon（M 系列）和 Intel，同一个通用安装包 |
+| 额外软件 | 使用 Release 安装包不需要安装 Xcode、Python 或其他运行依赖 |
+| 首次打开 | 当前版本尚未公证；若被系统拦截，按下方“仍要打开”步骤处理 |
+| 切换时区 | 需要 macOS 管理员授权，系统弹窗可能显示 `osascript` |
+
+目前已在 **macOS 15.5** 上完成实际启动和管理员授权切换验证；支持范围内的其他系统版本尚未逐一实机测试。
+
+管理员密码仅在 macOS 系统弹窗中输入，App 不保存密码。普通账号需要可用的管理员凭据才能批准切换。**不需要辅助功能、屏幕录制、完全磁盘访问、定位、相机或麦克风权限。** 常用城市只保存在本机。
+
 ### 使用
 
 1. 下载 Release 中的 universal ZIP，解压后将 **TZswitch.app** 拖进“应用程序”，即可从启动台启动。
@@ -87,7 +115,7 @@ If TZswitch helps you, a [Star](https://github.com/jockerxb/TZswitch) is welcome
 
 安装、首次设置、搜索示例、UTC 导航、取消授权及常见问题，请查看 **[App 使用说明](docs/USER_GUIDE.zh-CN.md)**。
 
-需要 macOS 13 或更新版本；通用安装包包含 Apple Silicon 与 Intel 两种架构。支持中文城市名、英文城市名、IANA 标识（如 `Asia/Shanghai`）及 UTC 偏移（如 `UTC+05:45`）搜索。北京、Beijing、北京时间均可找到“北京 / 上海”（`Asia/Shanghai`）。同城且完整时区规则一致的兼容名称合并展示，旧名称仍可搜索。
+支持中文城市名、英文城市名、IANA 标识（如 `Asia/Shanghai`）及 UTC 偏移（如 `UTC+05:45`）搜索。北京、Beijing、北京时间均可找到“北京 / 上海”（`Asia/Shanghai`）。同城且完整时区规则一致的兼容名称合并展示，旧名称仍可搜索。
 
 当前 Release 使用 **ad hoc 签名**，尚未经过 Developer ID 签名与 Apple 公证。首次运行可能需要在“系统设置 → 隐私与安全性”中允许打开。请确认下载来源，也可以按下方说明自行构建。
 

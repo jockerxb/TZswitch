@@ -6,7 +6,21 @@ TZswitch 用于修改 Mac 的**系统时区**。设置一个常用城市即可�
 
 ## 1. 下载与安装
 
-需要 **macOS 13 或更新版本**，支持 Apple Silicon 和 Intel Mac。
+### 安装要求与权限
+
+| 项目 | 要求 |
+| --- | --- |
+| macOS | **13.0 及以上** |
+| Mac 芯片 | Apple Silicon（M 系列）和 Intel，同一个通用安装包 |
+| 额外软件 | 使用 Release 安装包不需要安装 Xcode、Python 或其他运行依赖 |
+| 首次打开 | 当前版本尚未公证；若被系统拦截，按下方“仍要打开”步骤处理 |
+| 切换时区 | 需要 macOS 管理员授权，系统弹窗可能显示 `osascript` |
+
+目前已在 **macOS 15.5** 上完成实际启动和管理员授权切换验证；支持范围内的其他系统版本尚未逐一实机测试。
+
+管理员密码仅在 macOS 系统弹窗中输入，App 不保存密码。普通账号需要可用的管理员凭据才能批准切换。**不需要辅助功能、屏幕录制、完全磁盘访问、定位、相机或麦克风权限。** 常用城市只保存在本机。
+
+### 安装步骤
 
 1. 打开[下载页面](https://github.com/jockerxb/TZswitch/releases/latest)，在 Assets 中下载名称以 `-macOS-universal.zip` 结尾的安装包。
 2. 解压，将 **TZswitch.app** 拖入“应用程序”。使用 App 不需要安装 Xcode 或运行源码。
