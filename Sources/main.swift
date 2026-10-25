@@ -181,6 +181,13 @@ struct TimezoneView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? teal.opacity(0.5) : Color.black.opacity(0.04)))
             .disabled(model.busy)
+            .contextMenu {
+                if model.favorites.configuredCount > 1 {
+                    Button(role: .destructive) { model.removeFavorite(slot) } label: {
+                        Label("删除\(zone.city)", systemImage: "trash")
+                    }.disabled(model.busy)
+                }
+            }
         } else {
             let prompt = "点击设置常用城市"
             Button { model.editFavorite(slot) } label: {
@@ -281,6 +288,19 @@ struct ZonePicker: View {
                         }.frame(width: 58)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            if case .favorite(let slot) = request,
+               model.favorites.configuredCount > 1, model.favorites.slots[slot] != nil {
+                Divider()
+                HStack {
+                    Button(role: .destructive) { model.removeFavorite(slot) } label: {
+                        Label("删除此常用时区", systemImage: "trash")
+                    }
+                    .disabled(model.busy).accessibilityLabel("删除此常用时区")
+                    Spacer()
+                    Text("仅移除常用项，系统时区与备用时间不变")
+                        .font(.system(size: 10)).foregroundColor(.secondary)
+                }
             }
         }
         .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)

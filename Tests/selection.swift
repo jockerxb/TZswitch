@@ -194,6 +194,37 @@ private final class StubSystem: @unchecked Sendable {
         check(restoredClock.backupClock.enabled && restoredClock.backupClock.destination == .losAngeles
               && clockSystem.count == 1, "再次手动选择后启用新备用城市，无额外系统授权")
         clockDefaults.removePersistentDomain(forName: clockSuite)
+        let removalSuite = suitePrefix + ".removal"
+        let removalDefaults = UserDefaults(suiteName: removalSuite)!
+        removalDefaults.set(old, forKey: FavoriteZones.previousKey)
+        removalDefaults.set(old + ["Asia/Tokyo"], forKey: FavoriteZones.key)
+        let savedBackup = BackupClockSettings(enabled: true, destination: shanghai)
+        savedBackup.persist(defaults: removalDefaults)
+        let removalSystem = StubSystem(initial: original, result: CommandResult(status: 1, output: "must not execute"))
+        let removal = AppModel(defaults: removalDefaults, snapshotReader: { removalSystem.read() },
+            authorizer: { removalSystem.run($0) }, compiler: { _ in true })
+        removal.busy = true
+        check(!removal.removeFavorite(0) && removal.favorites.configuredCount == 3,
+              "系统切换进行中禁止删除常用项")
+        removal.busy = false
+        removal.editFavorite(0)
+        check(removal.removeFavorite(0) && removal.picker == nil, "编辑面板可删除当前城市并关闭面板")
+        removal.pickerDidDismiss()
+        check(removalSystem.count == 0 && removal.snapshot.identifier == original.identifier && removal.backupClock == savedBackup,
+              "删除当前生效城市不会授权、改变系统时区或备用时钟")
+        let tokyo = Destination(rawValue: "Asia/Tokyo")!
+        check(removal.favorites.slots == [.losAngeles, tokyo, nil] && FavoriteZones(defaults: removalDefaults) == removal.favorites,
+              "删除后编号压紧并保存，不回退到旧版本偏好")
+        check(removal.removeFavorite(1) && removal.favorites.slots == [.losAngeles, nil, nil], "可从两个删除至一个")
+        let singleSaved = removalDefaults.stringArray(forKey: FavoriteZones.key)
+        check(!removal.removeFavorite(0) && !removal.removeFavorite(1)
+              && removalDefaults.stringArray(forKey: FavoriteZones.key) == singleSaved,
+              "单城市或空位删除被拒绝，持久化数据保持不变")
+        let reopened = AppModel(defaults: removalDefaults, snapshotReader: { removalSystem.read() },
+            authorizer: { removalSystem.run($0) }, compiler: { _ in true })
+        check(reopened.favorites.slots == [.losAngeles, nil, nil] && reopened.backupClock == savedBackup
+              && removalSystem.count == 0, "重启保持删除结果与备用时钟，系统未执行额外变更")
+        removalDefaults.removePersistentDomain(forName: removalSuite)
         exit(failures == 0 ? 0 : 1)
     }
 }

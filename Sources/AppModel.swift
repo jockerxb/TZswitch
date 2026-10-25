@@ -59,6 +59,16 @@ import Combine
         picker = .favorite(slot)
     }
 
+    @discardableResult func removeFavorite(_ slot: Int) -> Bool {
+        guard !busy, let updated = favorites.removing(slot: slot),
+              let removed = favorites.slots[slot] else { return false }
+        commitFavorite(updated)
+        picker = nil
+        failed = false
+        message = "已删除\(removed.city)，系统时区未更改。"
+        return true
+    }
+
     func editBackup() {
         guard !busy, picker == nil else { return }
         picker = .backup(enableAfterSelection: false)

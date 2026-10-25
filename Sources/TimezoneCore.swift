@@ -189,6 +189,14 @@ struct FavoriteZones: Equatable {
     func contains(_ zone: Destination, excluding slot: Int) -> Bool {
         slots.indices.contains { $0 != slot && slots[$0]?.isSameLocation(as: zone) == true }
     }
+    func removing(slot: Int) -> FavoriteZones? {
+        guard configuredCount > 1, slots.indices.contains(slot), slots[slot] != nil else { return nil }
+        let remaining = slots.indices.filter { $0 != slot }.compactMap { slots[$0] }
+        var updated = self
+        updated.slots = remaining.map(Optional.some)
+            + Array(repeating: nil, count: Self.capacity - remaining.count)
+        return updated
+    }
     func persist(defaults: UserDefaults) {
         defaults.set(slots.map { $0?.rawValue ?? "" }, forKey: Self.key)
     }

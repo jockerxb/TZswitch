@@ -107,6 +107,19 @@ check(!pair.replace(slot: 2, with: tokyo, defaults: defaults), "第三位不能�
 check(!pair.replace(slot: 3, with: tokyo, defaults: defaults), "拒绝第四个常用位置")
 check(pair.slots == [tokyo, .losAngeles, .lusaka], "失败编辑不修改现有选择")
 check(pair.replace(slot: 2, with: shanghai, defaults: defaults), "第三位可以独立更换城市")
+for slot in 0..<FavoriteZones.capacity {
+    let removed = pair.removing(slot: slot)!
+    let expected = pair.slots.enumerated().filter { $0.offset != slot }.map { $0.element } + [nil]
+    check(removed.slots == expected && removed.nextAvailableSlot == 2, "删除任意位置后顺序不变、编号连续且可继续添加")
+}
+let two = pair.removing(slot: 1)!
+two.persist(defaults: defaults)
+check(FavoriteZones(defaults: defaults) == two, "删除结果可持久化，不会重启后重新出现")
+let one = two.removing(slot: 1)!
+check(one.slots == [tokyo, nil, nil] && one.removing(slot: 0) == nil, "至少保留一个常用城市，底层拒绝删除最后一个")
+check(pair.removing(slot: -1) == nil && pair.removing(slot: 3) == nil && two.removing(slot: 2) == nil,
+      "拒绝越界或空位删除")
+check(pair.slots == [tokyo, .losAngeles, shanghai], "删除暂存不修改原数据")
 let aliasSuite = suite + ".aliases"
 let aliasDefaults = UserDefaults(suiteName: aliasSuite)!
 var aliases = FavoriteZones(defaults: aliasDefaults)

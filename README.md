@@ -41,6 +41,8 @@ See the **[App user guide (中文)](docs/USER_GUIDE.zh-CN.md)** for installation
 5. Hold **Command (⌘)** and drag the menu-bar time to move it, for example to the left of Control Center. Its position is managed by macOS; toggling the display reuses the same status item.
 6. With the backup clock on, closing the window or using Quit / Command-Q hides the main interface while the clock continues. Click the menu-bar time for **“打开 TZswitch”**, **“更换备用时区…”**, or **“退出[city]时间”**. Stopping the clock never changes the system timezone. With the backup clock off, closing the window or quitting exits the app normally.
 
+To remove a mistaken favorite, click its right-hand `>` and choose **“删除此常用时区”**, or right-click the card and choose Delete. Removal is available only with two or three favorites; at least one is kept. Remaining cities are renumbered, and the system timezone and backup clock stay unchanged.
+
 The current interface is in Chinese. Search accepts localized Chinese city names, English city names, IANA IDs such as `America/Los_Angeles`, and offsets such as `UTC+05:45`. Beijing and 北京时间 resolve to Beijing / Shanghai (`Asia/Shanghai`). Compatibility IDs for the same city with identical full timezone rules appear once, while their old names remain searchable.
 
 The release uses an **ad hoc signature**. It is not Developer ID signed or notarized, so macOS may require approval in **System Settings → Privacy & Security** on first launch. Only approve a download you trust. You can also build from source below.
@@ -132,6 +134,8 @@ TZswitch 不检测或控制 VPN，也不改变 IP 地址或实际位置；仅切
 4. 如需查看本地或另一城市时间，打开 **“备用时区显示”**，手动选择城市后，菜单栏显示 **“周日 18:22”** 这样的星期和时分。取消选择则保持关闭；此操作不切换系统时区，也不需要管理员授权。
 5. 按住 **Command（⌘）**，再拖动顶部备用时间，可移到“控制中心”图标左侧等位置。位置由 macOS 管理；开关切换时复用同一菜单栏项目。
 6. **备用关闭**：关闭窗口或退出 App 后，仅保留已经生效的系统时区。**备用开启**：关闭窗口或退出主界面（含 Command-Q）后，系统时区与菜单栏备用时钟都保留。点击备用时间可打开主界面、更换备用城市或选择 **“退出××时间”**；停止备用时钟不改变系统时区。
+
+误添加的常用城市可点右侧 `>`，在面板底部选择 **“删除此常用时区”**，也可右键卡片删除。仅在有 2～3 个城市时显示删除入口，至少保留 1 个。删除后自动重新编号，不改变系统时区或备用时钟。
 
 安装、首次设置、搜索示例、UTC 导航、取消授权及常见问题，请查看 **[App 使用说明](docs/USER_GUIDE.zh-CN.md)**。
 
