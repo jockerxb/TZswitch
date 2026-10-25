@@ -9,7 +9,7 @@
 ## English
 
 **Switch your system time zone. Keep local time in sight.**
-<img width="920" height="1158" alt="image" src="https://github.com/user-attachments/assets/cc1b12f3-6ab9-4c3b-9b8c-93a328c3a879" />
+<img width="460" height="579" alt="image" src="https://github.com/user-attachments/assets/cc1b12f3-6ab9-4c3b-9b8c-93a328c3a879" />
 
 
 ### When to use TZswitch
@@ -91,7 +91,7 @@ If TZswitch helps you, please give it a [Star ⭐](https://github.com/jockerxb/T
 ## 中文说明
 
 **时区随手切，本地时间随时看。**
-<img width="920" height="1158" alt="image" src="https://github.com/user-attachments/assets/680dcf28-15b0-49c7-be17-a64afaca31b5" />
+<img width="460" height="579" alt="image" src="https://github.com/user-attachments/assets/680dcf28-15b0-49c7-be17-a64afaca31b5" />
 
 ### 应用场景
 
