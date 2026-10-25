@@ -1,4 +1,4 @@
-<p align="center"><img src="Assets/logo.png" width="120" alt="TZswitch icon"></p>
+<p align="center"><img src="docs/images/tzswitch-banner.png" width="100%" alt="TZswitch — 时区随手切，本地时间随时看"></p>
 
 # TZswitch
 
@@ -21,6 +21,7 @@ For example: use Los Angeles time for macOS and Beijing time in the menu bar.
 ### Features
 
 - **Favorite timezone switching:** Save up to 3 cities and click to switch the system timezone. One city is enough to start; adding more cities only saves them.
+- **Chinese and English:** Use the language icon next to GitHub; your choice is remembered.
 - **A separate backup clock:** Choose a city and see its weekday and HH:mm in the menu bar. It stays visible after closing the main window and can be stopped independently without changing the system timezone.
 
 [Download the latest release](https://github.com/jockerxb/TZswitch/releases/latest) · [Installation and user guide (中文)](docs/USER_GUIDE.zh-CN.md)
@@ -59,6 +60,8 @@ Tests cover DST boundaries, fractional offsets, global search and UTC grouping, 
 ### Implementation
 
 `Sources/TimezoneCore.swift` owns the validated timezone catalog, preferences, system snapshot, and switching transaction. `Sources/AppModel.swift` owns authorization flow and preference commits after success; `Sources/main.swift` contains the UI and app lifecycle. Only explicit switch actions run the administrator script. IDs must be in the system allowlist and are shell-quoted at the command boundary. Failed transactions attempt to restore the previous timezone and automatic-selection setting.
+
+UI copy is defined in the exhaustive bilingual `AppText` table. `AppModel.language` persists the selection and drives all surfaces; build checks reject hardcoded UI copy.
 
 GitHub Actions builds, tests, and packages pushes and pull requests. A `v*` tag publishes a release after those checks pass; the tag must match the version in `Info.plist`.
 
@@ -100,6 +103,7 @@ If TZswitch helps you, please give it a [Star ⭐](https://github.com/jockerxb/T
 ### 基础功能
 
 - **常用时区切换**：保存最多 3 个常用城市，点击即可切换系统时区。设置 1 个就能使用，添加更多城市只保存、不切换。
+- **中英文切换**：点击 GitHub 左侧语言图标，选择会自动记住。
 - **备用时间显示**：自选城市，在菜单栏显示「星期 + 时分」。关闭主窗口后继续显示，可单独退出，不影响系统时区。
 
 [下载最新版](https://github.com/jockerxb/TZswitch/releases/latest) · [安装与使用指南](docs/USER_GUIDE.zh-CN.md)
@@ -138,6 +142,8 @@ cd TZswitch
 ### 开发与发布
 
 `Sources/TimezoneCore.swift` 负责目录、偏好、系统读取和切换事务；`Sources/AppModel.swift` 负责授权流程及成功后的偏好提交；`Sources/main.swift` 负责界面与生命周期。时区标识只允许系统数据库内的值，执行前再次进行 shell 转义。切换失败时尝试恢复原时区与自动时区设置。
+
+界面文案统一定义在 `AppText` 的中英文配对中，新增条目缺少翻译会编译失败。`AppModel.language` 持久化语言并驱动所有界面；构建检查拦截绕过语言层的界面文案。
 
 GitHub Actions 在 push 和 pull request 时自动构建、测试并打包；推送 `v*` 标签会在检查通过后发布 Release，标签必须与 `Info.plist` 中的版本一致。
 

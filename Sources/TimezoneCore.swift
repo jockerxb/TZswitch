@@ -146,11 +146,14 @@ enum ZoneCatalog {
             return minutes % 60 == 0 ? hours : hours + String(format: ":%02d", minutes % 60)
         }
     }
-    static func groups(_ query: String, at date: Date) -> [OffsetGroup] {
+    static func groups(_ query: String, at date: Date, language: AppLanguage = .chinese) -> [OffsetGroup] {
         let matches = search(query, at: date)
         let grouped = Dictionary(grouping: matches) { $0.zone.secondsFromGMT(for: date) }
         return grouped.keys.sorted().map { seconds in
-            let zones = grouped[seconds]!
+            let zones = grouped[seconds]!.sorted {
+                let order = $0.displayName(in: language).compare($1.displayName(in: language), locale: language.locale)
+                return order == .orderedSame ? $0.rawValue < $1.rawValue : order == .orderedAscending
+            }
             return OffsetGroup(seconds: seconds, title: zones[0].offset(at: date), zones: zones)
         }
     }
@@ -229,11 +232,11 @@ struct BackupClockSettings: Equatable {
         if let destination { saved["timezone"] = destination.rawValue }
         defaults.set(saved, forKey: Self.key)
     }
-    func title(at date: Date) -> String? {
+    func title(at date: Date, language: AppLanguage = .chinese) -> String? {
         guard enabled, let destination else { return nil }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = destination.zone
-        let weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+        let weekdays = language.weekdays
         return weekdays[calendar.component(.weekday, from: date) - 1] + " " + destination.time(at: date)
     }
 }
@@ -328,16 +331,16 @@ enum SystemCommands {
 enum SwitchOutcome: Equatable {
     case success
     case cancelled
-    case failure(String)
+    case failure(AppText)
 
     static func evaluate(result: CommandResult, snapshot: SystemSnapshot, target: Destination) -> SwitchOutcome {
         if result.status != 0 {
             if result.output.contains("(-128)") { return .cancelled }
-            return .failure("系统未完成切换。请重试或检查管理员权限。")
+            return .failure(.switchFailed)
         }
         guard snapshot.identifier == target.rawValue, snapshot.automatic == false,
               result.output.contains("VERIFIED:\(target.rawValue)") else {
-            return .failure("验证未通过：系统时区与所选城市不一致，请检查日期与时间设置。")
+            return .failure(.verificationFailed)
         }
         return .success
     }

@@ -21,7 +21,9 @@ private struct ContentHeight: PreferenceKey {
 
 struct TimezoneView: View {
     @ObservedObject var model: AppModel
+    private var language: AppLanguage { model.language }
     var onContentHeightChange: (CGFloat) -> Void = { _ in }
+    @State private var showingLanguages = false
 
     var body: some View {
         ScrollView {
@@ -34,33 +36,37 @@ struct TimezoneView: View {
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TZswitch").font(.system(size: 22, weight: .semibold))
-                        Text("时区随手切，本地时间随时看").font(.system(size: 12)).foregroundColor(.secondary)
+                        Text(language.text(.tagline)).font(.system(size: 12)).foregroundColor(.secondary)
+                            .lineLimit(1).minimumScaleFactor(0.85)
                     }
                     Spacer()
-                    Link(destination: URL(string: "https://github.com/jockerxb/TZswitch")!) {
-                        HStack(spacing: 7) {
-                            Image(systemName: "arrow.up.right.square")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("GitHub")
+                    HStack(spacing: 8) {
+                        languageButton
+                        Link(destination: URL(string: "https://github.com/jockerxb/TZswitch")!) {
+                            HStack(spacing: 7) {
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text("GitHub")
+                            }
+                            .font(.system(size: 13, weight: .semibold))
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(teal.opacity(0.08), in: Capsule())
+                            .contentShape(Capsule())
+                            .fixedSize()
                         }
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.horizontal, 12).padding(.vertical, 7)
-                        .background(teal.opacity(0.08), in: Capsule())
-                        .contentShape(Capsule())
-                        .fixedSize()
+                        .buttonStyle(.plain).foregroundColor(teal)
+                        .accessibilityLabel(language.text(.openGitHub))
+                        .help(language.text(.gitHubHelp))
                     }
-                    .buttonStyle(.plain).foregroundColor(teal)
-                    .accessibilityLabel("打开 TZswitch GitHub 项目")
-                    .help("在浏览器中查看源码、下载更新或反馈问题")
                 }
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 6) {
                         Circle().fill(teal).frame(width: 6, height: 6)
-                        Text("系统当前时区").font(.system(size: 11, weight: .medium))
+                        Text(language.text(.currentTimezone)).font(.system(size: 11, weight: .medium))
                     }.foregroundColor(.secondary)
                     Text(currentTime).font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(model.snapshot.destination?.city ?? model.snapshot.identifier)
+                        Text(model.snapshot.destination.map { $0.displayName(in: language) } ?? model.snapshot.identifier)
                             .font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.85)
                         Text(model.snapshot.destination?.offset(at: model.now) ?? model.snapshot.identifier)
                             .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary).fixedSize()
@@ -71,12 +77,12 @@ struct TimezoneView: View {
 
                 VStack(spacing: 10) {
                     HStack {
-                        Text("常用时区").font(.system(size: 13, weight: .semibold))
+                        Text(language.text(.favorites)).font(.system(size: 13, weight: .semibold))
                         Spacer()
                         if model.busy { ProgressView().controlSize(.small) }
                     }
                     if model.favorites.needsSetup {
-                        Text("设置一个常用城市，即可开始使用")
+                        Text(language.text(.setupHint))
                             .font(.system(size: 12)).foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -87,7 +93,7 @@ struct TimezoneView: View {
                         if let slot = model.favorites.nextAvailableSlot {
                             HStack(spacing: 0) {
                                 Button { model.editFavorite(slot) } label: {
-                                    Label("添加常用时区", systemImage: "plus")
+                                    Label(language.text(.addFavorite), systemImage: "plus")
                                         .font(.system(size: 12, weight: .medium))
                                         .padding(.vertical, 6).padding(.trailing, 10)
                                         .contentShape(Rectangle())
@@ -103,15 +109,15 @@ struct TimezoneView: View {
                     Image(systemName: model.failed ? "exclamationmark.circle" : "checkmark.shield")
                     if model.failed || model.busy {
                         // Authorization and error details remain fully readable.
-                        Text(model.message ?? "正在处理…").fixedSize(horizontal: false, vertical: true)
+                        Text(model.message ?? language.text(.working)).fixedSize(horizontal: false, vertical: true)
                     } else {
                         let status = model.message ?? (model.snapshot.automatic == true
-                            ? "切换需管理员授权并关闭自动时区"
-                            : "切换需管理员授权")
-                        let closing = model.backupClock.enabled ? "关闭窗口保留备用时间" : "关闭即退出，时区保留"
+                            ? language.text(.adminAutomatic)
+                            : language.text(.adminRequired))
+                        let closing = model.backupClock.enabled ? language.text(.closeKeepClock) : language.text(.closeQuit)
                         Text(status + " · " + closing)
                             .lineLimit(1).minimumScaleFactor(0.85)
-                            .help(status + " · " + closing + "；系统时区继续保留")
+                            .help(status + " · " + closing + language.text(.timezoneStaysHelp))
                     }
                 }.font(.system(size: 10)).foregroundColor(model.failed ? .red : .secondary)
 
@@ -131,28 +137,63 @@ struct TimezoneView: View {
         }
     }
 
+    private var languageButton: some View {
+        Button { showingLanguages.toggle() } label: {
+            Image(systemName: "character.bubble")
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 30, height: 30)
+                .background(teal.opacity(0.08), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain).foregroundColor(teal)
+        .accessibilityLabel(language.text(.changeLanguage))
+        .help(language.text(.changeLanguage))
+        .popover(isPresented: $showingLanguages, arrowEdge: .bottom) {
+            VStack(spacing: 2) {
+                ForEach(AppLanguage.allCases, id: \.self) { option in
+                    Button {
+                        model.setLanguage(option)
+                        showingLanguages = false
+                    } label: {
+                        HStack {
+                            Text(option.name)
+                            Spacer()
+                            if option == language {
+                                Image(systemName: "checkmark").foregroundColor(teal)
+                            }
+                        }
+                        .font(.system(size: 14)).padding(10)
+                        .contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
+            }
+            .padding(6).frame(width: 160).foregroundColor(ink)
+            .preferredColorScheme(.light)
+        }
+    }
+
     private var backupClockSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("备用时区显示").font(.system(size: 13, weight: .semibold))
+                Text(language.text(.backupClock)).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Toggle("备用时区显示", isOn: Binding(get: { model.backupClock.enabled }, set: model.setBackupDisplay))
+                Toggle(language.text(.backupClock), isOn: Binding(get: { model.backupClock.enabled }, set: model.setBackupDisplay))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .accessibilityLabel("显示备用时区时间").disabled(model.busy)
+                    .accessibilityLabel(language.text(.showBackupClock)).disabled(model.busy)
             }
             if model.backupClock.enabled, let zone = model.backupClock.destination {
                 Button { model.editBackup() } label: {
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(zone.city).font(.system(size: 13, weight: .medium))
+                            Text(zone.displayName(in: language)).font(.system(size: 13, weight: .medium))
                             Text(zone.offset(at: model.now)).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
                         }
                         Spacer(minLength: 4)
-                        Text(model.backupClock.title(at: model.now) ?? "").font(.system(size: 15)).monospacedDigit()
+                        Text(model.backupClock.title(at: model.now, language: language) ?? "").font(.system(size: 15)).monospacedDigit()
                         Image(systemName: "chevron.right").font(.system(size: 11, weight: .medium))
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
-                    .accessibilityLabel("更换备用城市：\(zone.city)")
+                    .accessibilityLabel(language.text(.changeBackupCity, zone.displayName(in: language)))
             }
         }.padding(14).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
     }
@@ -166,21 +207,21 @@ struct TimezoneView: View {
                         Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
                             .frame(width: 27, height: 36).background(teal.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 8))
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(zone.city).font(.system(size: 15, weight: .semibold)).lineLimit(1)
-                            Text(zone.offset(at: model.now) + (zone.zone.isDaylightSavingTime(for: model.now) ? " · 夏令时" : ""))
+                            Text(zone.displayName(in: language)).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                            Text(zone.offset(at: model.now) + (zone.zone.isDaylightSavingTime(for: model.now) ? language.text(.dstSuffix) : ""))
                                 .font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
                         }
                         Spacer(minLength: 4)
                         Text(zone.time(at: model.now)).font(.system(size: 22, design: .rounded)).monospacedDigit()
                     }.padding(.leading, 13).padding(.vertical, 13).padding(.trailing, 4).contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).accessibilityLabel("切换到\(zone.city)")
+                .buttonStyle(.plain).accessibilityLabel(language.text(.switchTo, zone.displayName(in: language)))
                 Button { model.editFavorite(slot) } label: {
                     Image(systemName: "chevron.right").font(.system(size: 13, weight: .medium)).foregroundColor(teal)
                         .frame(width: 44, height: 62).contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).accessibilityLabel("更换常用城市 \(slot + 1)")
-                .help("更换常用城市")
+                .buttonStyle(.plain).accessibilityLabel(language.text(.changeFavoriteNumber, slot + 1))
+                .help(language.text(.changeFavorite))
             }
             .background(selected ? teal.opacity(0.045) : Color.white.opacity(0.8))
             .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -189,12 +230,12 @@ struct TimezoneView: View {
             .contextMenu {
                 if model.favorites.configuredCount > 1 {
                     Button(role: .destructive) { model.removeFavorite(slot) } label: {
-                        Label("删除\(zone.city)", systemImage: "trash")
+                        Label(language.text(.deleteCity, zone.displayName(in: language)), systemImage: "trash")
                     }.disabled(model.busy)
                 }
             }
         } else {
-            let prompt = "点击设置常用城市"
+            let prompt = language.text(.chooseFavoriteCity)
             Button { model.editFavorite(slot) } label: {
                 HStack(spacing: 10) {
                     Text("\(slot + 1)").font(.system(size: 12, weight: .semibold)).foregroundColor(teal)
@@ -210,7 +251,7 @@ struct TimezoneView: View {
         }
     }
     private var currentTime: String { format("HH:mm:ss", locale: "en_US_POSIX") }
-    private var currentDate: String { format("M月d日 EEEE", locale: "zh_CN") }
+    private var currentDate: String { format(language.datePattern, locale: language.locale.identifier) }
     private func format(_ pattern: String, locale: String) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: locale)
@@ -224,13 +265,15 @@ struct TimezoneView: View {
 final class PickerCatalog: ObservableObject {
     private let referenceDate: Date
     @Published private(set) var groups: [ZoneCatalog.OffsetGroup]
-    var summary: String { "\(groups.count) 个时区 · \(groups.reduce(0) { $0 + $1.zones.count }) 个城市" }
+    func summary(in language: AppLanguage) -> String {
+        language.catalogSummary(offsets: groups.count, cities: groups.reduce(0) { $0 + $1.zones.count })
+    }
     init() {
         let date = Date()
         referenceDate = date
         groups = ZoneCatalog.groups("", at: date)
     }
-    func search(_ query: String) { groups = ZoneCatalog.groups(query, at: referenceDate) }
+    func search(_ query: String, language: AppLanguage) { groups = ZoneCatalog.groups(query, at: referenceDate, language: language) }
 }
 
 private struct OffsetPositions: PreferenceKey {
@@ -242,10 +285,11 @@ private struct OffsetPositions: PreferenceKey {
 
 struct ZonePicker: View {
     @ObservedObject var model: AppModel
+    private var language: AppLanguage { model.language }
     let request: PickerRequest
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
-    @State private var error: String?
+    @State private var error: AppText?
     @State private var visibleOffset: Int?
     // Stable data and date while choosing; the live clock cannot reorder rows.
     @StateObject private var catalog = PickerCatalog()
@@ -253,19 +297,19 @@ struct ZonePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(request.title).font(.system(size: 18, weight: .semibold))
+                Text(request.title(in: language)).font(.system(size: 18, weight: .semibold))
                 Spacer()
-                Button { dismiss() } label: { Label("关闭", systemImage: "xmark") }
-                    .keyboardShortcut(.cancelAction).accessibilityLabel("关闭时区选择")
+                Button { dismiss() } label: { Label(language.text(.close), systemImage: "xmark") }
+                    .keyboardShortcut(.cancelAction).accessibilityLabel(language.text(.closePicker))
             }
             Text(pickerExplanation)
                 .font(.system(size: 12)).foregroundColor(.secondary)
-            TextField("搜索时区/城市，例如：utc9、北京", text: $search)
-                .textFieldStyle(.roundedBorder).accessibilityLabel("搜索全球时区")
+            TextField(language.text(.searchPlaceholder), text: $search)
+                .textFieldStyle(.roundedBorder).accessibilityLabel(language.text(.searchGlobal))
             HStack {
-                Text(catalog.summary).font(.system(size: 11)).foregroundColor(.secondary)
+                Text(catalog.summary(in: language)).font(.system(size: 11)).foregroundColor(.secondary)
                 Spacer()
-                if let error { Text(error).font(.system(size: 11)).foregroundColor(.red) }
+                if let error { Text(language.text(error)).font(.system(size: 11)).foregroundColor(.red) }
             }
             ScrollViewReader { proxy in
                 HStack(alignment: .top, spacing: 8) {
@@ -285,8 +329,8 @@ struct ZonePicker: View {
                                                 .contentShape(Rectangle())
                                         }
                                         .buttonStyle(.plain).foregroundColor(teal)
-                                        .accessibilityLabel("跳转到\(group.title)")
-                                        .help("跳转到\(group.title)")
+                                        .accessibilityLabel(language.text(.jumpTo, group.title))
+                                        .help(language.text(.jumpTo, group.title))
                                     }
                                 }
                             }
@@ -299,19 +343,21 @@ struct ZonePicker: View {
                 Divider()
                 HStack {
                     Button(role: .destructive) { model.removeFavorite(slot) } label: {
-                        Label("删除此常用时区", systemImage: "trash")
+                        Label(language.text(.deleteFavorite), systemImage: "trash")
                     }
-                    .disabled(model.busy).accessibilityLabel("删除此常用时区")
+                    .disabled(model.busy).accessibilityLabel(language.text(.deleteFavorite))
                     Spacer()
-                    Text("仅移除常用项，系统时区与备用时间不变")
+                    Text(language.text(.removeFavoriteHint))
                         .font(.system(size: 10)).foregroundColor(.secondary)
                 }
             }
         }
         .padding(22).frame(width: 570, height: 590).preferredColorScheme(.light)
+        .onAppear { catalog.search(search, language: language) }
+        .onChange(of: model.language) { value in catalog.search(search, language: value) }
         .onChange(of: search) { query in
             visibleOffset = nil
-            catalog.search(query)
+            catalog.search(query, language: language)
         }
     }
     private var currentGroup: ZoneCatalog.OffsetGroup? {
@@ -339,7 +385,7 @@ struct ZonePicker: View {
                                 switch request {
                                 case .favorite(let slot):
                                     if !model.chooseFavorite(slot: slot, destination: zone) {
-                                        error = "此城市已在常用时区中"
+                                        error = .duplicateCity
                                     }
                                 case .backup:
                                     model.chooseBackup(zone)
@@ -347,17 +393,17 @@ struct ZonePicker: View {
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(zone.city).font(.system(size: 13, weight: .medium))
+                                        Text(zone.displayName(in: language)).font(.system(size: 13, weight: .medium))
                                         Text(zone.rawValue).font(.system(size: 10, design: .monospaced)).foregroundColor(.secondary)
                                     }
                                     Spacer()
-                                    if usedByOther { Text("已添加").font(.system(size: 10)).foregroundColor(.secondary) }
+                                    if usedByOther { Text(language.text(.addedLabel)).font(.system(size: 10)).foregroundColor(.secondary) }
                                     Text(group.title).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                                 }.padding(8).contentShape(Rectangle())
                                     .background(selected ? teal.opacity(0.05) : Color.clear)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(selected ? teal.opacity(0.5) : .clear))
-                            }.buttonStyle(.plain).accessibilityLabel("选择\(zone.city)，\(zone.rawValue)")
+                            }.buttonStyle(.plain).accessibilityLabel(language.text(.chooseCityIdentifier, zone.displayName(in: language), zone.rawValue))
                             Divider().padding(.horizontal, 8)
                         }
                     }
@@ -386,7 +432,7 @@ struct ZonePicker: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay {
             if catalog.groups.isEmpty {
-                Text("未找到结果，试试 utc9、utc-8 或北京。")
+                Text(language.text(.noResults))
                     .font(.system(size: 12)).foregroundColor(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.85)
                     .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.horizontal, 16)
@@ -398,9 +444,9 @@ struct ZonePicker: View {
         switch request {
         case .favorite(let slot):
             return model.isAddingFavorite(slot)
-                ? "仅添加常用城市，不切换系统时区。添加后点击卡片即可切换。"
-                : "选择城市后将请求 macOS 管理员授权，确认即可切换。"
-        case .backup: return "仅用于显示备用时间，不修改系统时区，无需管理员授权。"
+                ? language.text(.addOnlyHint)
+                : language.text(.switchCityHint)
+        case .backup: return language.text(.backupOnlyHint)
         }
     }
 
@@ -422,6 +468,8 @@ struct ZonePicker: View {
     private let model = AppModel()
     private var window: NSWindow!
     private var clockObserver: AnyCancellable?
+    private var languageObserver: AnyCancellable?
+    private var clockMenuLanguage: AppLanguage?
     private var statusItem: NSStatusItem?
     private let statusItemPosition = StatusItemPosition(autosaveName: "TZswitchBackupClock")
     private var menuClock: BackupClockSettings?
@@ -455,24 +503,30 @@ struct ZonePicker: View {
             fittedContentHeight = WindowLayout.initialHeight
             UserDefaults.standard.set(WindowLayout.revision, forKey: layoutRevisionKey)
         }
-        clockObserver = model.$backupClock.combineLatest(model.$now)
-            .sink { [weak self] settings, date in self?.updateStatusClock(settings, at: date) }
+        clockObserver = model.$backupClock.combineLatest(model.$now, model.$language)
+            .sink { [weak self] settings, date, language in self?.updateStatusClock(settings, at: date, language: language) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        let menu = NSMenu()
-        let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "显示TZswitch", action: #selector(showWindow), keyEquivalent: "0")
-        appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "退出TZswitch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        let appItem = NSMenuItem()
-        appItem.submenu = appMenu
-        menu.addItem(appItem)
-        NSApp.mainMenu = menu
+        languageObserver = model.$language.sink { [weak self] language in
+            self?.updateApplicationMenu(in: language)
+        }
         windowReady = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.fitWindow(to: self.measuredContentHeight)
         }
+    }
+
+    private func updateApplicationMenu(in language: AppLanguage) {
+        let menu = NSMenu()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: language.text(.showAppMenu), action: #selector(showWindow), keyEquivalent: "0")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: language.text(.quitAppMenu), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let appItem = NSMenuItem()
+        appItem.submenu = appMenu
+        menu.addItem(appItem)
+        NSApp.mainMenu = menu
     }
 
     private func fitWindow(to measuredHeight: CGFloat) {
@@ -494,12 +548,13 @@ struct ZonePicker: View {
         window.setFrame(frame, display: true)
     }
 
-    private func updateStatusClock(_ settings: BackupClockSettings, at date: Date) {
-        guard let title = settings.title(at: date), let zone = settings.destination else {
+    private func updateStatusClock(_ settings: BackupClockSettings, at date: Date, language: AppLanguage) {
+        guard let title = settings.title(at: date, language: language), let zone = settings.destination else {
             if let statusItem, statusItem.isVisible {
                 statusItemPosition.hide { statusItem.isVisible = false }
             }
             menuClock = nil
+            clockMenuLanguage = nil
             return
         }
         if statusItem == nil {
@@ -513,22 +568,23 @@ struct ZonePicker: View {
             statusItem?.isVisible = true
         }
         if statusItem?.button?.title != title { statusItem?.button?.title = title }
-        statusItem?.button?.toolTip = "TZswitch · \(zone.city) · \(zone.offset(at: date))\n按住 ⌘ 拖动时间可调整菜单栏位置"
-        statusItem?.button?.setAccessibilityLabel("备用时间 \(zone.city) \(title)")
+        statusItem?.button?.toolTip = "TZswitch · \(zone.displayName(in: language)) · \(zone.offset(at: date))\n" + language.text(.moveClockHelp)
+        statusItem?.button?.setAccessibilityLabel(language.text(.backupAccessibility, zone.displayName(in: language), title))
         // Rebuilding an open menu on every clock tick would interrupt clicks.
-        if menuClock != settings {
+        if menuClock != settings || clockMenuLanguage != language {
             let menu = NSMenu()
-            menu.addItem(withTitle: "备用时区：\(zone.city)", action: nil, keyEquivalent: "")
+            menu.addItem(withTitle: language.text(.backupTimezoneMenu, zone.displayName(in: language)), action: nil, keyEquivalent: "")
             menu.addItem(.separator())
-            let show = menu.addItem(withTitle: "打开 TZswitch", action: #selector(showWindow), keyEquivalent: "")
+            let show = menu.addItem(withTitle: language.text(.openApp), action: #selector(showWindow), keyEquivalent: "")
             show.target = self
-            let edit = menu.addItem(withTitle: "更换备用时区…", action: #selector(editBackupClock), keyEquivalent: "")
+            let edit = menu.addItem(withTitle: language.text(.changeBackupMenu), action: #selector(editBackupClock), keyEquivalent: "")
             edit.target = self
             menu.addItem(.separator())
-            let stop = menu.addItem(withTitle: "退出\(zone.city)时间", action: #selector(stopBackupClock), keyEquivalent: "")
+            let stop = menu.addItem(withTitle: language.text(.stopClockMenu, zone.displayName(in: language)), action: #selector(stopBackupClock), keyEquivalent: "")
             stop.target = self
             statusItem?.menu = menu
             menuClock = settings
+            clockMenuLanguage = language
         }
     }
 
@@ -562,7 +618,7 @@ struct ZonePicker: View {
     }
     private func canQuit() -> Bool {
         guard !model.busy else {
-            model.message = "正在切换时区，请完成或取消系统授权后再退出。"
+            model.showMessage(.quitWhileSwitching)
             return false
         }
         return true

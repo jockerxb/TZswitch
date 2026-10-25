@@ -5,7 +5,9 @@ import Combine
     @Published var snapshot: SystemSnapshot
     @Published var now = Date()
     @Published var busy = false
-    @Published var message: String?
+    @Published private var notice: AppNotice?
+    @Published private(set) var language: AppLanguage
+    var message: String? { notice?.text(in: language) }
     @Published var failed = false
     @Published var favorites: FavoriteZones
     @Published private(set) var backupClock: BackupClockSettings
@@ -27,6 +29,7 @@ import Combine
              return NSAppleScript(source: SystemCommands.appleScript(for: script))?.compileAndReturnError(&error) == true
          }) {
         self.defaults = defaults
+        language = AppLanguage(defaults: defaults)
         self.snapshotReader = snapshotReader
         self.authorizer = authorizer
         self.compiler = compiler
@@ -36,11 +39,21 @@ import Combine
         authorizationReady = compiler(SystemCommands.switchScript(to: .lusaka))
         if !authorizationReady {
             failed = true
-            message = "系统授权组件不可用，请重新打开 App 后重试。"
+            showMessage(.authorizationUnavailable)
         }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.refresh() }
         }
+    }
+
+    func setLanguage(_ language: AppLanguage) {
+        guard self.language != language else { return }
+        language.persist(defaults: defaults)
+        self.language = language
+    }
+
+    func showMessage(_ key: AppText, destination: Destination? = nil) {
+        notice = AppNotice(key: key, destination: destination)
     }
 
     func refresh() {
@@ -49,7 +62,7 @@ import Combine
         if let expected = lastVerified, !busy,
            snapshot.destination?.isSameLocation(as: expected) != true || snapshot.automatic == true {
             failed = true
-            message = "系统设置已被其他程序更改，请重新选择时区。"
+            showMessage(.systemChanged)
             lastVerified = nil
         }
     }
@@ -69,7 +82,7 @@ import Combine
         commitFavorite(updated)
         picker = nil
         failed = false
-        message = "已删除\(removed.city)，系统时区未更改。"
+        showMessage(.deletedNotice, destination: removed)
         return true
     }
 
@@ -111,7 +124,7 @@ import Combine
         guard !busy, case .favorite(let requestedSlot) = picker, requestedSlot == slot else { return false }
         guard let updated = favorites.replacing(slot: slot, with: destination) else {
             failed = true
-            message = "常用时区请选择不同的城市。"
+            showMessage(.distinctFavorites)
             return false
         }
         failed = false
@@ -119,13 +132,13 @@ import Combine
         // replacing an existing city keep the explicit switch flow below.
         if isAddingFavorite(slot) {
             commitFavorite(updated)
-            message = "已添加\(destination.city)，点击卡片即可切换。"
+            showMessage(.addedNotice, destination: destination)
             picker = nil
             return true
         }
         pendingFavorite = (destination, updated)
         busy = true
-        message = "正在准备切换至\(destination.city)…"
+        showMessage(.preparingSwitch, destination: destination)
         picker = nil
         return true
     }
@@ -150,18 +163,18 @@ import Combine
         guard snapshot.destination?.isSameLocation(as: target) != true || snapshot.automatic != false else {
             commitFavorite(favoriteChange)
             failed = false
-            message = "系统已使用\(target.city)时区。"
+            showMessage(.alreadyCurrent, destination: target)
             return
         }
         let script = SystemCommands.switchScript(to: target)
         guard compiler(script) else {
             failed = true
-            message = "系统授权组件不可用，请重新打开 App 后重试。"
+            showMessage(.authorizationUnavailable)
             return
         }
         busy = true
         failed = false
-        message = "请在 macOS 弹窗中授权…"
+        showMessage(.authorizing)
         let authorize = authorizer
         Task {
             let result = await Task.detached { authorize(script) }.value
@@ -171,12 +184,12 @@ import Combine
             case .success:
                 commitFavorite(favoriteChange)
                 lastVerified = target
-                message = "已切换至\(target.city)"
+                showMessage(.switched, destination: target)
             case .cancelled:
-                message = "已取消，保留原城市与系统时区。"
+                showMessage(.cancelled)
             case .failure(let reason):
                 failed = true
-                message = reason
+                showMessage(reason)
             }
         }
     }
@@ -192,10 +205,10 @@ enum PickerRequest: Identifiable {
         case .backup: return "backup"
         }
     }
-    var title: String {
+    func title(in language: AppLanguage) -> String {
         switch self {
-        case .favorite(let slot): return "设置常用时区 \(slot + 1)"
-        case .backup: return "设置备用时区"
+        case .favorite(let slot): return language.text(.setFavoriteNumber, slot + 1)
+        case .backup: return language.text(.setBackup)
         }
     }
 }
