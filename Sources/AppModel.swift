@@ -108,23 +108,20 @@ import Combine
 
     func editBackup() {
         guard !busy, picker == nil else { return }
-        picker = .backup(enableAfterSelection: false)
+        picker = .backup(modeAfterSelection: nil)
     }
 
-    func setBackupDisplay(_ enabled: Bool) {
-        guard !busy else { return }
-        if enabled {
-            guard picker == nil else { return }
-            if let destination = backupClock.destination {
-                setBackupClock(enabled: true, destination: destination)
-            } else {
-                // Only first-time setup needs a city choice. Hiding a clock
-                // keeps that choice, so enabling it can resume immediately.
-                picker = .backup(enableAfterSelection: true)
-            }
-        } else {
-            setBackupClock(enabled: false, destination: backupClock.destination)
+    @discardableResult
+    func setBackupMode(_ mode: BackupClockMode, updateLogin: (Bool) -> Bool) -> Bool {
+        guard !busy, picker == nil else { return false }
+        if mode != .off && backupClock.destination == nil {
+            // Do not change the login item until the user commits a city.
+            picker = .backup(modeAfterSelection: mode)
+            return true
         }
+        guard updateLogin(mode == .showAtLogin) else { return false }
+        setBackupClock(enabled: mode != .off, destination: backupClock.destination)
+        return true
     }
 
     private func setBackupClock(enabled: Bool, destination: Destination?) {
@@ -136,10 +133,13 @@ import Combine
         if visibilityChanged && !foreground { scheduleUpdates() }
     }
 
-    func chooseBackup(_ destination: Destination) {
-        guard !busy, case .backup(let enableAfterSelection) = picker else { return }
-        setBackupClock(enabled: enableAfterSelection || backupClock.enabled, destination: destination)
+    func chooseBackup(_ destination: Destination, updateLogin: (Bool) -> Bool) {
+        guard !busy, case .backup(let modeAfterSelection) = picker else { return }
         picker = nil
+        if let mode = modeAfterSelection {
+            guard updateLogin(mode == .showAtLogin) else { return }
+        }
+        setBackupClock(enabled: modeAfterSelection != nil || backupClock.enabled, destination: destination)
     }
 
     func chooseFavorite(slot: Int, destination: Destination) -> Bool {
@@ -217,9 +217,27 @@ import Combine
     }
 }
 
+enum BackupClockMode: CaseIterable {
+    case off
+    case show
+    case showAtLogin
+
+    init(enabled: Bool, loginRequested: Bool) {
+        self = !enabled ? .off : (loginRequested ? .showAtLogin : .show)
+    }
+
+    var label: AppText {
+        switch self {
+        case .off: return .backupOff
+        case .show: return .backupShow
+        case .showAtLogin: return .showAtLogin
+        }
+    }
+}
+
 enum PickerRequest: Identifiable {
     case favorite(Int)
-    case backup(enableAfterSelection: Bool)
+    case backup(modeAfterSelection: BackupClockMode?)
 
     var id: String {
         switch self {

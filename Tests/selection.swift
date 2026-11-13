@@ -193,23 +193,30 @@ private final class StubSystem: @unchecked Sendable {
             result: CommandResult(status: 0, output: "VERIFIED:America/New_York"), after: applied)
         let clock = AppModel(defaults: clockDefaults, snapshotReader: { clockSystem.read() },
             authorizer: { clockSystem.run($0) }, compiler: { _ in true })
+        var loginEnabled = false
+        var loginChanges = 0
+        func updateLogin(_ enabled: Bool) -> Bool {
+            loginChanges += 1
+            loginEnabled = enabled
+            return true
+        }
         let shanghai = Destination(rawValue: "Asia/Shanghai")!
-        clock.setBackupDisplay(true)
+        clock.setBackupMode(.showAtLogin, updateLogin: updateLogin)
         check(!clock.backupClock.enabled && clock.backupClock.destination == nil && clock.picker != nil,
               "开启前必须手动选城市，不能默认使用系统或常用城市")
         clock.picker = nil
         clock.pickerDidDismiss()
-        check(!clock.backupClock.enabled && clockSystem.count == 0, "取消首次备用选择保持关闭且不授权")
-        clock.setBackupDisplay(true)
-        clock.chooseBackup(.lusaka)
+        check(!clock.backupClock.enabled && clockSystem.count == 0 && loginChanges == 0, "取消首次备用选择保持关闭且不注册登录项")
+        clock.setBackupMode(.showAtLogin, updateLogin: updateLogin)
+        clock.chooseBackup(.lusaka, updateLogin: updateLogin)
         clock.pickerDidDismiss()
-        check(clock.backupClock.enabled && clock.backupClock.destination == .lusaka, "手动选城后才开启备用显示")
+        check(clock.backupClock.enabled && clock.backupClock.destination == .lusaka && loginEnabled && loginChanges == 1, "手动选城后才显示并注册登录项")
         check(clockSystem.count == 0 && clock.snapshot.identifier == original.identifier && clock.favorites.needsSetup,
               "开启备用显示不请求授权、不修改系统或常用城市")
         clock.editBackup()
-        clock.chooseBackup(shanghai)
+        clock.chooseBackup(shanghai, updateLogin: updateLogin)
         clock.pickerDidDismiss()
-        check(clockSystem.count == 0 && clock.picker == nil && clock.backupClock.destination == shanghai,
+        check(clockSystem.count == 0 && clock.picker == nil && clock.backupClock.destination == shanghai && loginChanges == 1,
               "更换备用城市只保存显示设置，关闭选择面板也不发起授权")
         clock.select(target)
         let clockDeadline = Date().addingTimeInterval(3)
@@ -220,7 +227,14 @@ private final class StubSystem: @unchecked Sendable {
         let restoredClock = AppModel(defaults: clockDefaults, snapshotReader: { clockSystem.read() },
             authorizer: { clockSystem.run($0) }, compiler: { _ in true })
         check(restoredClock.backupClock == clock.backupClock, "重新启动可恢复备用城市和显示开关")
-        restoredClock.setBackupDisplay(false)
+        check(!restoredClock.setBackupMode(.off, updateLogin: { _ in false })
+              && restoredClock.backupClock.enabled && loginEnabled,
+              "取消注册失败时保留原显示模式")
+        restoredClock.setBackupMode(.show, updateLogin: updateLogin)
+        check(restoredClock.backupClock.enabled && !loginEnabled, "降到显示档仍显示时钟，但取消登录启动")
+        restoredClock.setBackupMode(.showAtLogin, updateLogin: updateLogin)
+        restoredClock.setBackupMode(.off, updateLogin: updateLogin)
+        check(!loginEnabled, "关闭时一并取消登录启动")
         check(!BackupClockSettings(defaults: clockDefaults).enabled
               && BackupClockSettings(defaults: clockDefaults).destination == shanghai && clockSystem.count == 1,
               "关闭备用显示不丢失城市、不执行额外系统修改")
@@ -228,7 +242,7 @@ private final class StubSystem: @unchecked Sendable {
             authorizer: { clockSystem.run($0) }, compiler: { _ in true })
         check(!reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == shanghai,
               "关闭备用显示后重启仍记住城市，但保持关闭")
-        reopenedHidden.setBackupDisplay(true)
+        reopenedHidden.setBackupMode(.show, updateLogin: updateLogin)
         check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == shanghai
               && reopenedHidden.picker == nil && clockSystem.count == 1
               && BackupClockSettings(defaults: clockDefaults).enabled,
@@ -239,13 +253,13 @@ private final class StubSystem: @unchecked Sendable {
         check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == shanghai
               && clockSystem.count == 1, "取消箭头更换保留原备用城市和显示开关")
         reopenedHidden.editBackup()
-        reopenedHidden.chooseBackup(.losAngeles)
+        reopenedHidden.chooseBackup(.losAngeles, updateLogin: updateLogin)
         reopenedHidden.pickerDidDismiss()
         check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == .losAngeles
               && clockSystem.count == 1, "通过箭头更换备用城市，无额外系统授权")
         for _ in 0..<3 {
-            reopenedHidden.setBackupDisplay(false)
-            reopenedHidden.setBackupDisplay(true)
+            reopenedHidden.setBackupMode(.off, updateLogin: updateLogin)
+            reopenedHidden.setBackupMode(.show, updateLogin: updateLogin)
         }
         check(reopenedHidden.backupClock.enabled && reopenedHidden.backupClock.destination == .losAngeles
               && reopenedHidden.picker == nil && clockSystem.count == 1

@@ -46,11 +46,13 @@ enum AppText: CaseIterable {
     case closeQuit
     case timezoneStaysHelp
     case backupClock
-    case showBackupClock
+    case backupOff
+    case backupShow
     case changeBackupCity
     case showAtLogin
     case loginItems
     case loginChangeFailed
+    case loginApprovalNeeded
     case dstSuffix
     case switchTo
     case changeFavoriteNumber
@@ -112,11 +114,13 @@ enum AppText: CaseIterable {
         case .closeQuit: return ("关闭即退出，时区保留", "Close to quit; your time zone stays set")
         case .timezoneStaysHelp: return ("；系统时区继续保留", "; your Mac keeps the selected time zone")
         case .backupClock: return ("备用时区显示", "Backup time zone")
-        case .showBackupClock: return ("显示备用时区时间", "Show backup time zone")
+        case .backupOff: return ("关闭", "Off")
+        case .backupShow: return ("显示", "Show")
         case .changeBackupCity: return ("更换备用城市：%@", "Change backup time zone: %@")
-        case .showAtLogin: return ("登录时显示", "Show at Login")
+        case .showAtLogin: return ("每次登录显示", "Show at Every Login")
         case .loginItems: return ("登录项设置…", "Login Items Settings…")
         case .loginChangeFailed: return ("无法更新登录项，请检查系统设置。", "Couldn’t update the login item. Check System Settings.")
+        case .loginApprovalNeeded: return ("请在系统设置中允许登录项。", "Allow the login item in System Settings.")
         case .dstSuffix: return (" · 夏令时", " · DST")
         case .switchTo: return ("切换到%@", "Switch to %@")
         case .changeFavoriteNumber: return ("更换常用城市 %d", "Change favorite city %d")

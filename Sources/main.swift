@@ -139,7 +139,7 @@ struct TimezoneView: View {
                minHeight: WindowLayout.minimumHeight, idealHeight: WindowLayout.initialHeight)
         .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.95)).preferredColorScheme(.light)
         .sheet(item: $model.picker, onDismiss: model.pickerDidDismiss) { request in
-            ZonePicker(model: model, request: request)
+            ZonePicker(model: model, request: request, updateLogin: clockLogin.setEnabled)
         }
     }
 
@@ -184,9 +184,16 @@ struct TimezoneView: View {
             HStack {
                 Text(language.text(.backupClock)).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Toggle(language.text(.backupClock), isOn: Binding(get: { model.backupClock.enabled }, set: model.setBackupDisplay))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .accessibilityLabel(language.text(.showBackupClock)).disabled(model.busy)
+                Picker(language.text(.backupClock), selection: Binding(
+                    get: { BackupClockMode(enabled: model.backupClock.enabled, loginRequested: clockLogin.isRequested) },
+                    set: { _ = model.setBackupMode($0, updateLogin: clockLogin.setEnabled) }
+                )) {
+                    ForEach(BackupClockMode.allCases, id: \.self) { mode in
+                        Text(language.text(mode.label)).tag(mode)
+                    }
+                }
+                .labelsHidden().pickerStyle(.menu).controlSize(.small)
+                .fixedSize().disabled(model.busy)
             }
             if model.backupClock.enabled, let zone = model.backupClock.destination {
                 Button { model.editBackup() } label: {
@@ -202,22 +209,12 @@ struct TimezoneView: View {
                 }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
                     .accessibilityLabel(language.text(.changeBackupCity, zone.displayName(in: language)))
             }
-            if model.backupClock.enabled || clockLogin.status == .enabled || clockLogin.status == .requiresApproval {
-                Toggle(language.text(.showAtLogin), isOn: Binding(
-                    get: { clockLogin.status == .enabled || clockLogin.status == .requiresApproval },
-                    set: clockLogin.setEnabled
-                ))
-                .toggleStyle(.checkbox).font(.system(size: 11))
-                .disabled(model.busy)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if clockLogin.status == .requiresApproval || clockLogin.changeFailed {
-                    HStack {
-                        if clockLogin.changeFailed {
-                            Text(language.text(.loginChangeFailed)).foregroundColor(.secondary)
-                        }
-                        Button(language.text(.loginItems), action: clockLogin.openLoginItems)
-                    }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
-                }
+            if clockLogin.changeFailed || (model.backupClock.enabled && clockLogin.status == .requiresApproval) {
+                HStack {
+                    Text(language.text(clockLogin.changeFailed ? .loginChangeFailed : .loginApprovalNeeded))
+                        .foregroundColor(.secondary)
+                    Button(language.text(.loginItems), action: clockLogin.openLoginItems)
+                }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             }
         }.padding(14).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
     }
@@ -311,6 +308,7 @@ struct ZonePicker: View {
     @ObservedObject var model: AppModel
     private var language: AppLanguage { model.language }
     let request: PickerRequest
+    let updateLogin: (Bool) -> Bool
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var error: AppText?
@@ -412,7 +410,7 @@ struct ZonePicker: View {
                                         error = .duplicateCity
                                     }
                                 case .backup:
-                                    model.chooseBackup(zone)
+                                    model.chooseBackup(zone, updateLogin: updateLogin)
                                 }
                             } label: {
                                 HStack {
@@ -508,9 +506,13 @@ struct ZonePicker: View {
             event: NSAppleEventManager.shared().currentAppleEvent,
             registered: clockLogin.status == .enabled
         )
-        if atLogin && !model.backupClock.enabled {
-            NSApp.terminate(nil)
-            return
+        if !model.backupClock.enabled {
+            // Earlier versions could leave login enabled while the clock was off.
+            if clockLogin.isRequested { _ = clockLogin.setEnabled(false) }
+            if atLogin {
+                NSApp.terminate(nil)
+                return
+            }
         }
         clockObserver = model.$backupClock.combineLatest(model.$now, model.$language)
             .sink { [weak self] settings, date, language in self?.updateStatusClock(settings, at: date, language: language) }
@@ -630,8 +632,7 @@ struct ZonePicker: View {
     }
 
     @objc private func stopBackupClock() {
-        guard !model.busy else { showWindow(); return }
-        model.setBackupDisplay(false)
+        guard model.setBackupMode(.off, updateLogin: clockLogin.setEnabled) else { showWindow(); return }
         // No visible main window and no clock means there is nothing to keep
         // running. This only stops the process; it never restores a timezone.
         if window?.isVisible != true { NSApp.terminate(nil) }

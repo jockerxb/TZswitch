@@ -11,23 +11,24 @@ import ServiceManagement
 
     func refresh() { status = service.status }
 
-    func setEnabled(_ enabled: Bool) {
+    var isRequested: Bool { status == .enabled || status == .requiresApproval }
+
+    func setEnabled(_ enabled: Bool) -> Bool {
         changeFailed = false
         refresh()
         do {
             if enabled, status == .notRegistered || status == .notFound {
                 try service.register()
-            } else if !enabled, status == .enabled || status == .requiresApproval {
+            } else if !enabled, isRequested {
                 try service.unregister()
             }
         } catch {
-            refresh()
-            changeFailed = status != .requiresApproval || !enabled
-            return
+            // The system can report an error after the state already changed.
+            // In particular, registration can be waiting for user approval.
         }
         refresh()
-        changeFailed = enabled ? status != .enabled && status != .requiresApproval
-            : status == .enabled || status == .requiresApproval
+        changeFailed = isRequested != enabled
+        return !changeFailed
     }
 
     func openLoginItems() { SMAppService.openSystemSettingsLoginItems() }
