@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreServices
+import ServiceManagement
 import SwiftUI
 
 
@@ -25,6 +26,7 @@ private struct ContentHeight: PreferenceKey {
 
 struct TimezoneView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var clockLogin: ClockLogin
     private var language: AppLanguage { model.language }
     var onContentHeightChange: (CGFloat) -> Void = { _ in }
     @State private var showingLanguages = false
@@ -199,6 +201,23 @@ struct TimezoneView: View {
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain).foregroundColor(teal).disabled(model.busy)
                     .accessibilityLabel(language.text(.changeBackupCity, zone.displayName(in: language)))
+            }
+            if model.backupClock.enabled || clockLogin.status == .enabled || clockLogin.status == .requiresApproval {
+                Toggle(language.text(.showAtLogin), isOn: Binding(
+                    get: { clockLogin.status == .enabled || clockLogin.status == .requiresApproval },
+                    set: clockLogin.setEnabled
+                ))
+                .toggleStyle(.checkbox).font(.system(size: 11))
+                .disabled(model.busy)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if clockLogin.status == .requiresApproval || clockLogin.changeFailed {
+                    HStack {
+                        if clockLogin.changeFailed {
+                            Text(language.text(.loginChangeFailed)).foregroundColor(.secondary)
+                        }
+                        Button(language.text(.loginItems), action: clockLogin.openLoginItems)
+                    }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }.padding(14).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
     }
@@ -471,8 +490,10 @@ struct ZonePicker: View {
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let model = AppModel()
-    private var window: NSWindow!
+    private let clockLogin = ClockLogin()
+    private var window: NSWindow?
     private var clockObserver: AnyCancellable?
+    private var wakeObserver: AnyCancellable?
     private var languageObserver: AnyCancellable?
     private var clockMenuLanguage: AppLanguage?
     private var statusItem: NSStatusItem?
@@ -483,10 +504,28 @@ struct ZonePicker: View {
     private var windowReady = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let host = NSHostingController(rootView: TimezoneView(model: model, onContentHeightChange: { [weak self] height in
+        let atLogin = ClockLogin.isLoginLaunch(
+            event: NSAppleEventManager.shared().currentAppleEvent,
+            registered: clockLogin.status == .enabled
+        )
+        if atLogin && !model.backupClock.enabled {
+            NSApp.terminate(nil)
+            return
+        }
+        clockObserver = model.$backupClock.combineLatest(model.$now, model.$language)
+            .sink { [weak self] settings, date, language in self?.updateStatusClock(settings, at: date, language: language) }
+        wakeObserver = NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.model.now = Date() }
+        if atLogin { model.setWindowVisible(false) }
+        else { showWindow() }
+    }
+
+    private func makeWindow() -> NSWindow {
+        let host = NSHostingController(rootView: TimezoneView(model: model, clockLogin: clockLogin, onContentHeightChange: { [weak self] height in
             self?.fitWindow(to: height)
         }))
-        window = NSWindow(contentViewController: host)
+        let window = NSWindow(contentViewController: host)
         window.delegate = self
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TZswitch"
         window.titleVisibility = .hidden
@@ -508,18 +547,10 @@ struct ZonePicker: View {
             fittedContentHeight = WindowLayout.initialHeight
             UserDefaults.standard.set(WindowLayout.revision, forKey: layoutRevisionKey)
         }
-        clockObserver = model.$backupClock.combineLatest(model.$now, model.$language)
-            .sink { [weak self] settings, date, language in self?.updateStatusClock(settings, at: date, language: language) }
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
         languageObserver = model.$language.sink { [weak self] language in
             self?.updateApplicationMenu(in: language)
         }
-        windowReady = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.fitWindow(to: self.measuredContentHeight)
-        }
+        return window
     }
 
     private func updateApplicationMenu(in language: AppLanguage) {
@@ -603,19 +634,38 @@ struct ZonePicker: View {
         model.setBackupDisplay(false)
         // No visible main window and no clock means there is nothing to keep
         // running. This only stops the process; it never restores a timezone.
-        if !window.isVisible { NSApp.terminate(nil) }
+        if window?.isVisible != true { NSApp.terminate(nil) }
     }
 
     private func keepBackupClockAndHideWindow() {
-        window.orderOut(nil)
+        window?.orderOut(nil)
         NSApp.setActivationPolicy(.accessory)
+        model.setWindowVisible(false)
     }
 
     @objc private func showWindow() {
         NSApp.setActivationPolicy(.regular)
+        if window == nil {
+            window = makeWindow()
+            windowReady = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.fitWindow(to: self.measuredContentHeight)
+            }
+        }
+        guard let window else { return }
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        model.setWindowVisible(true)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        clockLogin.refresh()
+    }
+
+    func windowDidMiniaturize(_ notification: Notification) { model.setWindowVisible(false) }
+    func windowDidDeminiaturize(_ notification: Notification) { model.setWindowVisible(true) }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showWindow()
@@ -666,7 +716,7 @@ struct ZonePicker: View {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        app.setActivationPolicy(.regular)
+        app.setActivationPolicy(.accessory)
         app.run()
         withExtendedLifetime(delegate) {}
     }

@@ -12,7 +12,6 @@ import Combine
     @Published var favorites: FavoriteZones
     @Published private(set) var backupClock: BackupClockSettings
     @Published var picker: PickerRequest?
-    let authorizationReady: Bool
     private var lastVerified: Destination?
     private var pendingFavorite: (destination: Destination, favorites: FavoriteZones)?
     private let defaults: UserDefaults
@@ -20,6 +19,7 @@ import Combine
     private let authorizer: @Sendable (String) -> CommandResult
     private let compiler: (String) -> Bool
     private var timer: Timer?
+    private var foreground = false
 
     init(defaults: UserDefaults = .standard,
          snapshotReader: @escaping () -> SystemSnapshot = SystemSnapshot.read,
@@ -36,14 +36,34 @@ import Combine
         snapshot = snapshotReader()
         favorites = FavoriteZones(defaults: defaults)
         backupClock = BackupClockSettings(defaults: defaults)
-        authorizationReady = compiler(SystemCommands.switchScript(to: .lusaka))
-        if !authorizationReady {
-            failed = true
-            showMessage(.authorizationUnavailable)
+    }
+
+    deinit { timer?.invalidate() }
+
+    func setWindowVisible(_ visible: Bool) {
+        foreground = visible
+        if visible { refresh() }
+        else { now = Date() }
+        scheduleUpdates()
+    }
+
+    private func scheduleUpdates() {
+        timer?.invalidate()
+        timer = nil
+        guard foreground || backupClock.enabled else { return }
+        let interval: TimeInterval = foreground ? 1 : 60
+        let first = foreground ? Date().addingTimeInterval(interval)
+            : Date(timeIntervalSince1970: (floor(Date().timeIntervalSince1970 / interval) + 1) * interval)
+        let timer = Timer(fire: first, interval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if self.foreground { self.refresh() }
+                else { self.now = Date() }
+            }
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.refresh() }
-        }
+        timer.tolerance = foreground ? 0.1 : 0.5
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     func setLanguage(_ language: AppLanguage) {
@@ -111,7 +131,9 @@ import Combine
         guard !busy else { return }
         let settings = BackupClockSettings(enabled: enabled, destination: destination)
         settings.persist(defaults: defaults)
+        let visibilityChanged = settings.enabled != backupClock.enabled
         backupClock = settings
+        if visibilityChanged && !foreground { scheduleUpdates() }
     }
 
     func chooseBackup(_ destination: Destination) {

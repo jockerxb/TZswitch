@@ -22,6 +22,9 @@ fi
     -o "$BUILD/language-tests" -framework AppKit
 "$BUILD/language-tests"
 /usr/bin/xcrun swiftc -parse-as-library -module-cache-path "$BUILD/test-module-cache" \
+    Sources/ClockLogin.swift Tests/clock-login.swift -o "$BUILD/clock-login-tests" -framework ServiceManagement
+"$BUILD/clock-login-tests"
+/usr/bin/xcrun swiftc -parse-as-library -module-cache-path "$BUILD/test-module-cache" \
     Sources/StatusItemPosition.swift Tests/status-position.swift -o "$BUILD/status-position-tests"
 "$BUILD/status-position-tests"
 /usr/bin/python3 Tests/transaction.py "$BUILD"

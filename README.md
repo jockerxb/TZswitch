@@ -22,7 +22,7 @@ For example: use Los Angeles time for macOS and Beijing time in the menu bar.
 
 - **Favorite time zones:** Save up to 3 cities. Click a saved city to change your Mac’s time zone. Adding a city doesn’t switch it.
 - **Chinese and English:** Use the language icon next to GitHub; your choice is remembered.
-- **Backup time zone:** See another city’s day and time in the menu bar, even after closing the window. Hide it at any time without changing your Mac’s time zone.
+- **Backup time zone:** See another city’s day and time in the menu bar. Turn on **Show at Login** to restore it when you sign in, without opening a window or showing a Dock icon.
 
 [Download the latest release](https://github.com/jockerxb/TZswitch/releases/latest) · [Installation and user guide (中文)](docs/USER_GUIDE.zh-CN.md)
 
@@ -104,7 +104,7 @@ If TZswitch helps you, please give it a [Star ⭐](https://github.com/jockerxb/T
 
 - **常用时区切换**：保存最多 3 个常用城市，点击即可切换系统时区。设置 1 个就能使用，添加更多城市只保存、不切换。
 - **中英文切换**：点击 GitHub 左侧语言图标，选择会自动记住。
-- **备用时间显示**：自选城市，在菜单栏显示「星期 + 时分」。关闭主窗口后继续显示，可单独退出，不影响系统时区。
+- **备用时间显示**：自选城市，在菜单栏显示「星期 + 时分」。开启「登录时显示」后，登录 Mac 只恢复菜单栏时间，不弹主窗口、不显示 Dock 图标。
 
 [下载最新版](https://github.com/jockerxb/TZswitch/releases/latest) · [安装与使用指南](docs/USER_GUIDE.zh-CN.md)
 

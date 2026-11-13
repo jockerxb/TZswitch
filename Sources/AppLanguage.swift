@@ -48,6 +48,9 @@ enum AppText: CaseIterable {
     case backupClock
     case showBackupClock
     case changeBackupCity
+    case showAtLogin
+    case loginItems
+    case loginChangeFailed
     case dstSuffix
     case switchTo
     case changeFavoriteNumber
@@ -111,6 +114,9 @@ enum AppText: CaseIterable {
         case .backupClock: return ("备用时区显示", "Backup time zone")
         case .showBackupClock: return ("显示备用时区时间", "Show backup time zone")
         case .changeBackupCity: return ("更换备用城市：%@", "Change backup time zone: %@")
+        case .showAtLogin: return ("登录时显示", "Show at Login")
+        case .loginItems: return ("登录项设置…", "Login Items Settings…")
+        case .loginChangeFailed: return ("无法更新登录项，请检查系统设置。", "Couldn’t update the login item. Check System Settings.")
         case .dstSuffix: return (" · 夏令时", " · DST")
         case .switchTo: return ("切换到%@", "Switch to %@")
         case .changeFavoriteNumber: return ("更换常用城市 %d", "Change favorite city %d")

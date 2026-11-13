@@ -13,8 +13,8 @@ APP="$PWD/dist/TZswitch.app"
 mkdir -p "$BUILD" "$APP/Contents/MacOS" "$APP/Contents/Resources"
 for CPU in "${ARCHS[@]}"; do
     /usr/bin/xcrun swiftc -O -parse-as-library -module-cache-path "$BUILD/module-cache-$CPU" \
-        -target "$CPU-apple-macosx13.0" Sources/AppLanguage.swift Sources/TimezoneCore.swift Sources/AppModel.swift Sources/StatusItemPosition.swift Sources/main.swift \
-        -o "$BUILD/TZswitch-$CPU" -framework SwiftUI -framework AppKit
+        -target "$CPU-apple-macosx13.0" Sources/AppLanguage.swift Sources/TimezoneCore.swift Sources/AppModel.swift Sources/ClockLogin.swift Sources/StatusItemPosition.swift Sources/main.swift \
+        -o "$BUILD/TZswitch-$CPU" -framework SwiftUI -framework AppKit -framework ServiceManagement
 done
 if [[ "$ARCH" == universal ]]; then
     /usr/bin/lipo -create "$BUILD/TZswitch-arm64" "$BUILD/TZswitch-x86_64" -output "$APP/Contents/MacOS/TZswitch"
