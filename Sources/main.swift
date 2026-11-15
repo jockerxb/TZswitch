@@ -181,21 +181,14 @@ struct TimezoneView: View {
 
     private var backupClockSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 10) {
                 Text(language.text(.backupClock)).font(.system(size: 13, weight: .semibold))
-                Spacer()
-                Picker(language.text(.backupClock), selection: Binding(
-                    get: { BackupClockMode(enabled: model.backupClock.enabled, loginRequested: clockLogin.isRequested) },
-                    set: { _ = model.setBackupMode($0, updateLogin: clockLogin.setEnabled) }
-                )) {
-                    ForEach(BackupClockMode.allCases, id: \.self) { mode in
-                        Text(language.text(mode.label)).tag(mode)
-                    }
-                }
-                .labelsHidden().pickerStyle(.menu).controlSize(.small)
-                .fixedSize().disabled(model.busy)
+                    .fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 0)
+                backupClockModes
             }
             if model.backupClock.enabled, let zone = model.backupClock.destination {
+                Divider().opacity(0.6)
                 Button { model.editBackup() } label: {
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -217,6 +210,38 @@ struct TimezoneView: View {
                 }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             }
         }.padding(14).background(Color.white.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var backupClockModes: some View {
+        let selected = BackupClockMode(enabled: model.backupClock.enabled, loginRequested: clockLogin.isRequested)
+        return HStack(spacing: 2) {
+            ForEach(BackupClockMode.allCases, id: \.self) { mode in
+                let active = mode == selected
+                Button {
+                    if !active { model.setBackupMode(mode, updateLogin: clockLogin.setEnabled) }
+                } label: {
+                    HStack(spacing: 3) {
+                        // Keep each segment the same width when selection moves.
+                        Image(systemName: "checkmark").font(.system(size: 8, weight: .semibold))
+                            .opacity(active ? 1 : 0).accessibilityHidden(true)
+                        Text(language.text(mode.label)).font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(active ? teal : .secondary)
+                    .padding(.horizontal, 7)
+                    .frame(height: 26)
+                    .background(active ? teal.opacity(0.13) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(active ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(teal.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
+        .fixedSize()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(language.text(.backupClock))
+        .disabled(model.busy || model.picker != nil)
     }
 
     @ViewBuilder private func favoriteRow(_ slot: Int) -> some View {
