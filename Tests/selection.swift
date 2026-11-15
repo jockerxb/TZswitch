@@ -4,6 +4,7 @@ private final class StubSystem: @unchecked Sendable {
     private let lock = NSLock()
     private var snapshot: SystemSnapshot
     private var calls = 0
+    private var lastSource: String?
     private let result: CommandResult
     private let after: SystemSnapshot?
     init(initial: SystemSnapshot, result: CommandResult, after: SystemSnapshot? = nil) {
@@ -15,10 +16,12 @@ private final class StubSystem: @unchecked Sendable {
     func run(_ script: String) -> CommandResult {
         lock.lock(); defer { lock.unlock() }
         calls += 1
+        lastSource = script
         if let after { snapshot = after }
         return result
     }
     var count: Int { lock.lock(); defer { lock.unlock() }; return calls }
+    var source: String? { lock.lock(); defer { lock.unlock() }; return lastSource }
 }
 
 @main struct SelectionTests {
@@ -34,7 +37,7 @@ private final class StubSystem: @unchecked Sendable {
         let old = ["Africa/Lusaka", "America/Los_Angeles"]
         let suitePrefix = "TZswitch.SelectionTests." + UUID().uuidString
         let scenarios: [(String, CommandResult, SystemSnapshot?, Bool, Bool)] = [
-            ("取消授权", CommandResult(status: 1, output: "User canceled. (-128)"), nil, true, false),
+            ("取消授权", CommandResult(status: 1, output: "", appleScriptError: -128), nil, true, false),
             ("执行失败", CommandResult(status: 1, output: "failed"), nil, true, false),
             ("回读验证失败", CommandResult(status: 0, output: "VERIFIED:America/New_York"), nil, true, false),
             ("授权组件不可用", CommandResult(status: 0, output: ""), nil, false, false),
@@ -71,7 +74,7 @@ private final class StubSystem: @unchecked Sendable {
             let suite = suitePrefix + ".new.\(succeeds)"
             let defaults = UserDefaults(suiteName: suite)!
             let result = succeeds ? CommandResult(status: 0, output: "VERIFIED:America/New_York")
-                                  : CommandResult(status: 1, output: "(-128)")
+                                  : CommandResult(status: 1, output: "", appleScriptError: -128)
             let system = StubSystem(initial: original, result: result, after: succeeds ? applied : nil)
             let model = AppModel(defaults: defaults, snapshotReader: { system.read() },
                 authorizer: { system.run($0) }, compiler: { _ in true })
@@ -95,7 +98,7 @@ private final class StubSystem: @unchecked Sendable {
         let optionalSuite = suitePrefix + ".optional"
         let optionalDefaults = UserDefaults(suiteName: optionalSuite)!
         optionalDefaults.set(["Africa/Lusaka", ""], forKey: FavoriteZones.key)
-        let optionalSystem = StubSystem(initial: original, result: CommandResult(status: 1, output: "(-128)"))
+        let optionalSystem = StubSystem(initial: original, result: CommandResult(status: 1, output: "", appleScriptError: -128))
         let single = AppModel(defaults: optionalDefaults, snapshotReader: { optionalSystem.read() },
             authorizer: { optionalSystem.run($0) }, compiler: { _ in true })
         single.editFavorite(1)
@@ -115,12 +118,15 @@ private final class StubSystem: @unchecked Sendable {
               && FavoriteZones(defaults: optionalDefaults).slots == [.lusaka, target, nil]
               && optionalSystem.count == 0 && !single.favorites.needsSetup,
               "第二城保存并可重启读取，面板关闭回调不触发延迟切换")
+        single.setLanguage(.english)
         single.select(target)
         let deadline = Date().addingTimeInterval(3)
         while single.busy && Date() < deadline { try? await Task.sleep(nanoseconds: 1_000_000) }
         check(optionalSystem.count == 1 && single.snapshot.identifier == original.identifier
               && FavoriteZones(defaults: optionalDefaults).slots == [.lusaka, target, nil],
               "点击新卡片才授权；取消切换仍保留新增城市与原系统时区")
+        check(optionalSystem.source?.contains("with prompt \"TZswitch wants to change your Mac’s time zone to New York.\" with administrator privileges") == true,
+              "授权请求使用当前语言，并写明 TZswitch 和目标城市")
         optionalDefaults.removePersistentDomain(forName: optionalSuite)
 
         let automaticSuite = suitePrefix + ".automatic"

@@ -259,12 +259,12 @@ struct SystemSnapshot {
 struct CommandResult {
     let status: Int32
     let output: String
+    let appleScriptError: Int?
 
-    var appleScriptError: Int? {
-        let diagnostic = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard status != 0,
-              let match = diagnostic.range(of: #"\(-[0-9]+\)$"#, options: .regularExpression) else { return nil }
-        return Int(diagnostic[match].dropFirst().dropLast())
+    init(status: Int32, output: String, appleScriptError: Int? = nil) {
+        self.status = status
+        self.output = output
+        self.appleScriptError = appleScriptError
     }
 }
 
@@ -337,28 +337,32 @@ enum SystemCommands {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    static func appleScript(for shell: String) -> String {
-        let quoted = shell.replacingOccurrences(of: "\\", with: "\\\\")
+    private static func appleScriptString(_ value: String) -> String {
+        let quoted = value.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\n", with: "\\n")
-        return "do shell script \"\(quoted)\" with administrator privileges"
+        return "\"\(quoted)\""
     }
 
-    static func runAuthorized(_ script: String) -> CommandResult {
-        let process = Process()
-        let pipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", appleScript(for: script)]
-        process.standardOutput = pipe
-        process.standardError = pipe
-        do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            return CommandResult(status: process.terminationStatus, output: String(decoding: data, as: UTF8.self))
-        } catch {
-            return CommandResult(status: -1, output: error.localizedDescription)
+    static func appleScript(for shell: String, prompt: String) -> String {
+        "do shell script \(appleScriptString(shell)) with prompt \(appleScriptString(prompt)) with administrator privileges"
+    }
+
+    // Execute inside the app so macOS identifies TZswitch as the requesting
+    // process. AppModel serializes requests and preflights on the main thread.
+    static func runAuthorized(_ source: String) -> CommandResult {
+        guard let script = NSAppleScript(source: source) else {
+            return CommandResult(status: -1, output: "")
         }
+        var error: NSDictionary?
+        let reply: NSAppleEventDescriptor? = script.executeAndReturnError(&error)
+        if let error {
+            return CommandResult(status: 1, output: error[NSAppleScript.errorMessage] as? String ?? "",
+                                 appleScriptError: (error[NSAppleScript.errorNumber] as? NSNumber)?.intValue)
+        }
+        guard let output = reply?.stringValue else { return CommandResult(status: -1, output: "") }
+        return CommandResult(status: 0, output: output)
     }
 }
 

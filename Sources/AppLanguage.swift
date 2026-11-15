@@ -97,6 +97,7 @@ enum AppText: CaseIterable {
     case preparingSwitch
     case alreadyCurrent
     case authorizing
+    case systemAuthorizationPrompt
     case switched
     case cancelled
     case switchFailed
@@ -170,6 +171,7 @@ enum AppText: CaseIterable {
         case .preparingSwitch: return ("正在准备切换至%@…", "Preparing to switch to %@…")
         case .alreadyCurrent: return ("系统已使用%@时区。", "Your Mac is already set to %@ time.")
         case .authorizing: return ("请在 macOS 弹窗中授权…", "Authorize the change in the macOS dialog…")
+        case .systemAuthorizationPrompt: return ("TZswitch 请求将系统时区切换为%@。", "TZswitch wants to change your Mac’s time zone to %@.")
         case .switched: return ("已切换至%@", "Switched to %@")
         case .cancelled: return ("已取消，保留原城市与系统时区。", "Canceled. Your saved cities and system time zone haven’t changed.")
         case .switchFailed: return ("系统未完成切换。请重试；若仍失败，请检查「日期与时间」。", "Couldn’t change the time zone. Try again, or check Date & Time if the problem persists.")

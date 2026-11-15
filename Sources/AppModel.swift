@@ -26,9 +26,9 @@ import OSLog
     init(defaults: UserDefaults = .standard,
          snapshotReader: @escaping () -> SystemSnapshot = SystemSnapshot.read,
          authorizer: @escaping @Sendable (String) -> CommandResult = { SystemCommands.runAuthorized($0) },
-         compiler: @escaping (String) -> Bool = { script in
+         compiler: @escaping (String) -> Bool = { source in
              var error: NSDictionary?
-             return NSAppleScript(source: SystemCommands.appleScript(for: script))?.compileAndReturnError(&error) == true
+             return NSAppleScript(source: source)?.compileAndReturnError(&error) == true
          }) {
         self.defaults = defaults
         language = AppLanguage(defaults: defaults)
@@ -190,7 +190,8 @@ import OSLog
             showMessage(.alreadyCurrent, destination: target)
             return
         }
-        let script = SystemCommands.switchScript(to: target)
+        let prompt = language.text(.systemAuthorizationPrompt, target.displayName(in: language))
+        let script = SystemCommands.appleScript(for: SystemCommands.switchScript(to: target), prompt: prompt)
         guard compiler(script) else {
             failed = true
             showMessage(.authorizationUnavailable)

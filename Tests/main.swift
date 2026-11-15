@@ -18,15 +18,15 @@ check(Destination.losAngeles.time(at: before, seconds: true) == "01:59:59", "夏
 check(Destination.losAngeles.time(at: after, seconds: true) == "03:00:00", "夏令时切换后跳过不存在的小时")
 let snapshot = SystemSnapshot(identifier: Destination.lusaka.rawValue, automatic: false)
 check(SwitchOutcome.evaluate(result: CommandResult(status: 0, output: "VERIFIED:Africa/Lusaka"), snapshot: snapshot, target: .lusaka) == .success, "回读与执行结果一致才成功")
-check(SwitchOutcome.evaluate(result: CommandResult(status: 1, output: "User canceled. (-128)"), snapshot: snapshot, target: .losAngeles) == .cancelled, "用户取消授权")
-for (output, outcome) in [
-    (" execution error: canceled (-60006)\n", SwitchOutcome.cancelled),
-    ("execution error: denied (-60005)", .failure(.authorizationDenied)),
-    ("execution error: TZSWITCH:ZONE_VERIFY_FAILED (1)", .failure(.zoneVerify)),
-    ("execution error: TZSWITCH:AUTO_WRITE_FAILED (1)", .failure(.autoWrite)),
-    ("execution error: TZSWITCH:AUTO_VERIFY_FAILED TZSWITCH:ROLLBACK_FAILED (1)", .failure(.rollback))
+for (number, output, outcome) in [
+    (-128, "已取消。", SwitchOutcome.cancelled),
+    (-60006, "", .cancelled),
+    (-60005, "", .failure(.authorizationDenied)),
+    (1, "TZSWITCH:ZONE_VERIFY_FAILED", .failure(.zoneVerify)),
+    (1, "TZSWITCH:AUTO_WRITE_FAILED", .failure(.autoWrite)),
+    (1, "TZSWITCH:AUTO_VERIFY_FAILED TZSWITCH:ROLLBACK_FAILED", .failure(.rollback))
 ] {
-    check(SwitchOutcome.evaluate(result: CommandResult(status: 1, output: output), snapshot: snapshot, target: .losAngeles) == outcome,
+    check(SwitchOutcome.evaluate(result: CommandResult(status: 1, output: output, appleScriptError: number), snapshot: snapshot, target: .losAngeles) == outcome,
           "区分授权、系统回读和恢复失败：\(outcome)")
 }
 check(SwitchOutcome.evaluate(result: CommandResult(status: 0, output: "VERIFIED:America/Los_Angeles"), snapshot: snapshot, target: .losAngeles) != .success, "执行返回成功但系统未变更时拒绝报成功")
@@ -41,7 +41,9 @@ let fixtures: [(String, Destination)] = [
 ]
 for (name, destination) in fixtures {
     try SystemCommands.switchScript(to: destination).write(to: root.appendingPathComponent("\(name).sh"), atomically: true, encoding: .utf8)
-    try SystemCommands.appleScript(for: SystemCommands.switchScript(to: destination)).write(to: root.appendingPathComponent("\(name).applescript"), atomically: true, encoding: .utf8)
+    let prompt = AppLanguage.chinese.text(.systemAuthorizationPrompt, destination.displayName(in: .chinese))
+    try SystemCommands.appleScript(for: SystemCommands.switchScript(to: destination), prompt: prompt)
+        .write(to: root.appendingPathComponent("\(name).applescript"), atomically: true, encoding: .utf8)
 }
 check(Destination.allCases.count > 400, "全球系统时区目录")
 for id in ["Asia/Shanghai", "Europe/London", "America/New_York", "Australia/Sydney", "Asia/Kathmandu", "Pacific/Chatham", "Etc/UTC"] {
