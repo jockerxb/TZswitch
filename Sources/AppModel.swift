@@ -1,7 +1,9 @@
 import AppKit
 import Combine
+import OSLog
 
 @MainActor final class AppModel: ObservableObject {
+    private static let switchLog = Logger(subsystem: "local.xubo.timezone-switch", category: "Switch")
     @Published var snapshot: SystemSnapshot
     @Published var now = Date()
     @Published var busy = false
@@ -211,7 +213,11 @@ import Combine
                 showMessage(.cancelled)
             case .failure(let reason):
                 failed = true
-                showMessage(reason)
+                lastVerified = nil
+                // Keep only technical codes, without city names or command output.
+                let appleCode = result.appleScriptError.map { String($0) } ?? "none"
+                Self.switchLog.error("Switch failed: \(reason.rawValue, privacy: .public), tool status \(result.status, privacy: .public), AppleScript error \(appleCode, privacy: .public)")
+                showMessage(reason.message)
             }
         }
     }

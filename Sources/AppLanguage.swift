@@ -85,6 +85,11 @@ enum AppText: CaseIterable {
     case stopClockMenu
     case quitWhileSwitching
     case authorizationUnavailable
+    case authorizationDenied
+    case currentZoneReadFailed
+    case zoneNotApplied
+    case automaticZoneFailed
+    case rollbackFailed
     case systemChanged
     case deletedNotice
     case distinctFavorites
@@ -153,6 +158,11 @@ enum AppText: CaseIterable {
         case .stopClockMenu: return ("退出%@时间", "Hide %@ Time")
         case .quitWhileSwitching: return ("正在切换时区，请完成或取消系统授权后再退出。", "Finish or cancel authorization in the macOS dialog before quitting.")
         case .authorizationUnavailable: return ("系统授权组件不可用，请重新打开 App 后重试。", "Administrator authorization is unavailable. Restart TZswitch and try again.")
+        case .authorizationDenied: return ("macOS 未允许更改时区，请使用管理员账号授权后重试。", "macOS denied permission to change the time zone. Try again with an administrator account.")
+        case .currentZoneReadFailed: return ("无法读取当前系统时区，未执行切换。请检查「日期与时间」设置。", "Couldn’t read your current time zone. No change was made. Check Date & Time in System Settings.")
+        case .zoneNotApplied: return ("macOS 未应用所选时区，已保留原设置。请重试或检查「日期与时间」。", "macOS didn’t apply the selected time zone. Your previous settings are intact. Try again or check Date & Time.")
+        case .automaticZoneFailed: return ("无法关闭自动设置时区，已恢复原设置。请检查「日期与时间」。", "Couldn’t turn off automatic time zone detection. Your previous settings were restored. Check Date & Time.")
+        case .rollbackFailed: return ("切换未完成，且无法确认原设置已恢复。请检查「日期与时间」。", "The switch failed and the previous settings couldn’t be confirmed. Check Date & Time in System Settings.")
         case .systemChanged: return ("系统设置已被其他程序更改，请重新选择时区。", "Your Mac’s time settings changed. Choose a time zone again.")
         case .deletedNotice: return ("已删除%@，系统时区未更改。", "Removed %@ from Favorites. Your Mac’s time zone hasn’t changed.")
         case .distinctFavorites: return ("常用时区请选择不同的城市。", "This city is already in Favorites. Choose another city.")
@@ -162,7 +172,7 @@ enum AppText: CaseIterable {
         case .authorizing: return ("请在 macOS 弹窗中授权…", "Authorize the change in the macOS dialog…")
         case .switched: return ("已切换至%@", "Switched to %@")
         case .cancelled: return ("已取消，保留原城市与系统时区。", "Canceled. Your saved cities and system time zone haven’t changed.")
-        case .switchFailed: return ("系统未完成切换。请重试或检查管理员权限。", "Couldn’t change the time zone. Try again with administrator authorization.")
+        case .switchFailed: return ("系统未完成切换。请重试；若仍失败，请检查「日期与时间」。", "Couldn’t change the time zone. Try again, or check Date & Time if the problem persists.")
         case .verificationFailed: return ("验证未通过：系统时区与所选城市不一致，请检查日期与时间设置。", "The time zone change couldn’t be confirmed. Check System Settings > General > Date & Time.")
         }
     }

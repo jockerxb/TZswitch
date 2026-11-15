@@ -259,6 +259,13 @@ struct SystemSnapshot {
 struct CommandResult {
     let status: Int32
     let output: String
+
+    var appleScriptError: Int? {
+        let diagnostic = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard status != 0,
+              let match = diagnostic.range(of: #"\(-[0-9]+\)$"#, options: .regularExpression) else { return nil }
+        return Int(diagnostic[match].dropFirst().dropLast())
+    }
 }
 
 enum SystemCommands {
@@ -268,30 +275,57 @@ enum SystemCommands {
         set -eu
         target=\(shellQuote(destination.rawValue))
         pref='/Library/Preferences/com.apple.timezone.auto'
-        previous_auto=$(/usr/bin/defaults read "$pref" Active 2>/dev/null || /usr/bin/printf absent)
-        previous_path=$(/usr/bin/readlink /etc/localtime)
-        previous_zone=${previous_path##*/zoneinfo/}
+        read_zone() {
+            path=$(/usr/bin/readlink /etc/localtime) || return 1
+            case "$path" in */zoneinfo/?*) /usr/bin/printf '%s' "${path##*/zoneinfo/}" ;; *) return 1 ;; esac
+        }
+        read_auto() {
+            /usr/bin/defaults read "$pref" Active 2>/dev/null || /usr/bin/printf absent
+        }
+        previous_zone=$(read_zone) || { /usr/bin/printf 'TZSWITCH:ZONE_READ_FAILED' >&2; exit 1; }
+        previous_auto=$(read_auto)
         restore() {
-            /usr/sbin/systemsetup -settimezone "$previous_zone" >/dev/null 2>&1 || true
+            if [ "$(read_zone)" != "$previous_zone" ]; then
+                /usr/sbin/systemsetup -settimezone "$previous_zone" >/dev/null 2>&1 || true
+            fi
             case "$previous_auto" in
                 1) /usr/bin/defaults write "$pref" Active -bool true ;;
                 0) /usr/bin/defaults write "$pref" Active -bool false ;;
                 *) /usr/bin/defaults delete "$pref" Active >/dev/null 2>&1 || true ;;
             esac
         }
-        trap 'restore' EXIT
+        on_failure() {
+            trap - EXIT
+            restore
+            /usr/bin/printf 'TZSWITCH:%s' "$reason" >&2
+            if [ "$(read_zone)" != "$previous_zone" ] || [ "$(read_auto)" != "$previous_auto" ]; then
+                /usr/bin/printf ' TZSWITCH:ROLLBACK_FAILED' >&2
+            fi
+            exit 1
+        }
+        trap 'on_failure' EXIT
+        reason=AUTO_WRITE_FAILED
         /usr/bin/defaults write "$pref" Active -bool false
         # Some macOS versions emit Error:-99 despite applying the timezone.
         # Verify actual system state rather than treating command output as success.
         /usr/sbin/systemsetup -settimezone "$target" >/dev/null 2>&1 || true
-        actual_path=$(/usr/bin/readlink /etc/localtime)
-        actual_zone=${actual_path##*/zoneinfo/}
+        # Give macOS a short window to settle before rolling back. Never retry
+        # the privileged command itself, and never treat its exit code as proof.
+        attempts=0
+        while :; do
+            actual_zone=$(read_zone) || actual_zone=
+            actual_auto=$(read_auto)
+            if [ "$actual_zone" = "$target" ] && [ "$actual_auto" = 0 ]; then break; fi
+            if [ "$attempts" -eq 5 ]; then break; fi
+            attempts=$((attempts + 1))
+            /bin/sleep 0.2
+        done
         if [ "$actual_zone" != "$target" ]; then
-            /usr/bin/printf 'VERIFY_FAILED: 系统时区未变更，已尝试恢复原设置。' >&2
+            reason=ZONE_VERIFY_FAILED
             exit 1
         fi
-        if [ "$(/usr/bin/defaults read "$pref" Active)" != '0' ]; then
-            /usr/bin/printf 'AUTO_ZONE_FAILED: 自动时区未关闭，已尝试恢复原设置。' >&2
+        if [ "$actual_auto" != 0 ]; then
+            reason=AUTO_VERIFY_FAILED
             exit 1
         fi
         trap - EXIT
@@ -328,19 +362,53 @@ enum SystemCommands {
     }
 }
 
+enum SwitchFailure: String {
+    case zoneRead = "ZONE_READ_FAILED"
+    case zoneVerify = "ZONE_VERIFY_FAILED"
+    case autoWrite = "AUTO_WRITE_FAILED"
+    case autoVerify = "AUTO_VERIFY_FAILED"
+    case rollback = "ROLLBACK_FAILED"
+    case authorizationDenied = "AUTHORIZATION_DENIED"
+    case authorizationUnavailable = "AUTHORIZATION_UNAVAILABLE"
+    case unexpected = "UNEXPECTED_FAILURE"
+    case verification = "FINAL_VERIFICATION_FAILED"
+
+    var message: AppText {
+        switch self {
+        case .zoneRead: return .currentZoneReadFailed
+        case .zoneVerify: return .zoneNotApplied
+        case .autoWrite, .autoVerify: return .automaticZoneFailed
+        case .rollback: return .rollbackFailed
+        case .authorizationDenied: return .authorizationDenied
+        case .authorizationUnavailable: return .authorizationUnavailable
+        case .unexpected: return .switchFailed
+        case .verification: return .verificationFailed
+        }
+    }
+}
+
 enum SwitchOutcome: Equatable {
     case success
     case cancelled
-    case failure(AppText)
+    case failure(SwitchFailure)
 
     static func evaluate(result: CommandResult, snapshot: SystemSnapshot, target: Destination) -> SwitchOutcome {
         if result.status != 0 {
-            if result.output.contains("(-128)") { return .cancelled }
-            return .failure(.switchFailed)
+            switch result.appleScriptError {
+            case -128, -60006: return .cancelled
+            case -60005: return .failure(.authorizationDenied)
+            default: break
+            }
+            if result.status == -1 { return .failure(.authorizationUnavailable) }
+            if result.output.contains("TZSWITCH:" + SwitchFailure.rollback.rawValue) { return .failure(.rollback) }
+            for failure in [SwitchFailure.zoneRead, .zoneVerify, .autoWrite, .autoVerify] {
+                if result.output.contains("TZSWITCH:" + failure.rawValue) { return .failure(failure) }
+            }
+            return .failure(.unexpected)
         }
         guard snapshot.identifier == target.rawValue, snapshot.automatic == false,
-              result.output.contains("VERIFIED:\(target.rawValue)") else {
-            return .failure(.verificationFailed)
+              result.output.trimmingCharacters(in: .whitespacesAndNewlines) == "VERIFIED:\(target.rawValue)" else {
+            return .failure(.verification)
         }
         return .success
     }
